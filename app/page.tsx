@@ -1,5 +1,6 @@
 import Link from "next/link";
 import HeroWaves from "@/app/ui/HeroWaves";
+import HeroButtons from "@/app/ui/HeroButtons";
 
 export default function Home() {
   return (
@@ -10,12 +11,7 @@ export default function Home() {
         <div className="relative flex flex-col items-center z-10">
           <div className="hero-wordmark select-none">NeuraTone</div>
           <sup className="sup-branding">by Raiduix</sup>
-          <Link
-            href="/app"
-            className="focus-ring mt-10 inline-flex items-center justify-center rounded-md border border-slate-800/80 bg-[#121826] px-10 py-3 text-sm font-medium text-slate-300 shadow-[0_2px_6px_-1px_rgba(0,0,0,0.5)] transition hover:bg-[#1b2331] hover:text-slate-200"
-          >
-            Launch App
-          </Link>
+          <HeroButtons />
         </div>
       </section>
 

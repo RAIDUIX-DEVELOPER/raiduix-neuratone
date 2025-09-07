@@ -155,3 +155,40 @@ body {
     animation: none !important;
   }
 }
+
+/* Spotlight (searchlight) effect for interactive surfaces */
+.spotlight {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate; /* ensure blend confined */
+}
+.spotlight::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+      circle at var(--x, 50%) var(--y, 50%),
+      rgba(0, 161, 148, 0.38),
+      rgba(0, 161, 148, 0.12) 32%,
+      rgba(0, 161, 148, 0.06) 48%,
+      rgba(0, 161, 148, 0) 70%
+    ),
+    radial-gradient(
+      circle at var(--x, 50%) var(--y, 50%),
+      rgba(255, 255, 255, 0.18),
+      rgba(255, 255, 255, 0) 55%
+    );
+  opacity: 0;
+  transition: opacity 0.5s ease;
+  pointer-events: none;
+  mix-blend-mode: plus-lighter;
+  filter: blur(6px) saturate(140%);
+}
+.spotlight:hover::before,
+.spotlight:focus-visible::before {
+  opacity: 1;
+}
+.spotlight:active::before {
+  opacity: 0.95;
+  transition-duration: 120ms;
+}
