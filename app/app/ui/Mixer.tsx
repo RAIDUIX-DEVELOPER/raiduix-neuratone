@@ -292,23 +292,23 @@ export default function Mixer() {
         </button>
         <div className="flex gap-2 ml-auto mt-4">
           <button
+            className="spotlight px-3 py-1 rounded bg-slate-700/60 hover:bg-slate-600/60 text-xs font-medium text-slate-200 border border-slate-600/50"
             type="button"
             onClick={playAll}
-            className="px-3 py-1 rounded bg-slate-700/60 hover:bg-slate-600/60 text-xs font-medium text-slate-200 border border-slate-600/50"
           >
             Play All
           </button>
           <button
             type="button"
             onClick={stopAll}
-            className="px-3 py-1 rounded bg-slate-700/60 hover:bg-slate-600/60 text-xs font-medium text-slate-200 border border-slate-600/50"
+            className="spotlight px-3 py-1 rounded bg-slate-700/60 hover:bg-slate-600/60 text-xs font-medium text-slate-200 border border-slate-600/50"
           >
             Stop All
           </button>
           <button
             type="button"
             onClick={() => setShowWave((v) => !v)}
-            className={`px-3 py-1 rounded text-xs font-medium border border-slate-600/50 ${
+            className={`spotlight px-3 py-1 rounded text-xs font-medium border border-slate-600/50 ${
               showWave
                 ? "bg-teal-600/70 text-white"
                 : "bg-slate-700/60 text-slate-200 hover:bg-slate-600/60"
@@ -319,7 +319,7 @@ export default function Mixer() {
           <button
             type="button"
             onClick={() => setShowSpec((v) => !v)}
-            className={`px-3 py-1 rounded text-xs font-medium border border-slate-600/50 ${
+            className={`spotlight px-3 py-1 rounded text-xs font-medium border border-slate-600/50 ${
               showSpec
                 ? "bg-teal-600/70 text-white"
                 : "bg-slate-700/60 text-slate-200 hover:bg-slate-600/60"
@@ -335,13 +335,13 @@ export default function Mixer() {
             key={layer.id}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            className="card rounded-lg p-4 w-full min-w-[230px] bg-[#121826]/70 border border-slate-700/40"
+            className="card spotlight rounded-lg p-4 w-full min-w-[230px] bg-[#121826]/70 border border-slate-700/40"
           >
             <h3 className="text-sm font-semibold mb-3 text-slate-200 flex items-center justify-between">
               <span>Frequency {idx + 1}</span>
               <button
                 onClick={() => togglePlay(layer)}
-                className={`inline-flex items-center gap-1 rounded px-2 py-1 text-[11px] font-medium transition ${
+                className={`spotlight inline-flex items-center gap-1 rounded px-2 py-1 text-[11px] font-medium transition ${
                   layer.isPlaying
                     ? "bg-teal-500/90 text-white"
                     : "bg-slate-700/60 text-slate-200 hover:bg-slate-600/60"
@@ -352,7 +352,7 @@ export default function Mixer() {
               </button>
               <button
                 onClick={() => handleRemoveLayer(layer.id)}
-                className="ml-2 text-slate-500 hover:text-red-400 transition"
+                className="spotlight ml-2 text-slate-500 hover:text-red-400 transition"
                 aria-label="Remove layer"
               >
                 <Trash2 size={14} />

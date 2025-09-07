@@ -1,28 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
-
 export default function HeroButtons() {
-  useEffect(() => {
-    const update = (e: PointerEvent) => {
-      const target = (e.target as HTMLElement)?.closest?.(".spotlight");
-      if (!target) return;
-      const rect = (target as HTMLElement).getBoundingClientRect();
-      const x = ((e.clientX - rect.left) / rect.width) * 100;
-      const y = ((e.clientY - rect.top) / rect.height) * 100;
-      (target as HTMLElement).style.setProperty("--x", x + "%");
-      (target as HTMLElement).style.setProperty("--y", y + "%");
-    };
-    window.addEventListener("pointermove", update);
-    return () => window.removeEventListener("pointermove", update);
-  }, []);
-
   return (
     <div className="mt-10 flex flex-row items-center gap-3 flex-wrap justify-center">
       <Link
         href="/app"
-        className="spotlight focus-ring inline-flex items-center justify-center rounded-md border border-slate-800/80 bg-[#121826]/80 w-40 h-11 text-sm font-medium text-slate-300 shadow-[0_2px_6px_-1px_rgba(0,0,0,0.5)] transition hover:bg-[#1b2331] hover:text-slate-200"
+        className="spotlight btn-accent focus-ring inline-flex items-center justify-center rounded-md border border-slate-800/80 bg-[#121826]/70 w-40 h-11 text-sm font-medium text-slate-300 shadow-[0_2px_6px_-1px_rgba(0,0,0,0.5)] transition hover:bg-[#1b2331] hover:text-slate-200"
       >
         Launch App
       </Link>
@@ -30,7 +14,7 @@ export default function HeroButtons() {
         href="https://github.com/RAIDUIX-DEVELOPER/raiduix-neuratone"
         target="_blank"
         rel="noopener noreferrer"
-        className="spotlight inline-flex items-center justify-center gap-2 rounded-md w-40 h-11 text-[11px] font-medium tracking-wide text-teal-300/80 ring-1 ring-white/5 hover:text-teal-200 hover:ring-teal-400/30 transition-colors backdrop-blur-[15px] bg-[#121826]/60"
+        className="spotlight btn-accent inline-flex items-center justify-center gap-2 rounded-md w-40 h-11 text-[11px] font-medium tracking-wide text-teal-300/80 ring-1 ring-white/5 hover:text-teal-200 hover:ring-teal-400/30 transition-colors backdrop-blur-[15px] bg-[#121826]/50"
       >
         <svg
           width="14"
@@ -51,7 +35,7 @@ export default function HeroButtons() {
         href="https://x.com/raiduix"
         target="_blank"
         rel="noopener noreferrer"
-        className="spotlight inline-flex items-center justify-center gap-2 rounded-md w-40 h-11 text-[11px] font-medium tracking-wide text-slate-300/70 ring-1 ring-white/5 hover:text-white hover:ring-slate-400/30 transition-colors backdrop-blur-[15px] bg-[#121826]/60"
+        className="spotlight btn-accent inline-flex items-center justify-center gap-2 rounded-md w-40 h-11 text-[11px] font-medium tracking-wide text-slate-300/70 ring-1 ring-white/5 hover:text-white hover:ring-slate-400/30 transition-colors backdrop-blur-[15px] bg-[#121826]/50"
       >
         <svg
           width="14"

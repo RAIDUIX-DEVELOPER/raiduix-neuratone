@@ -22,7 +22,7 @@ export default function Home() {
             Why Layer Binaural & Isochronic Tones?
           </h2>
           <div className="grid gap-8 md:grid-cols-2">
-            <div className="card rounded-lg p-6 bg-[#121826]/70 border border-slate-700/40">
+            <div className="card spotlight rounded-lg p-6 bg-[#121826]/70 border border-slate-700/40">
               <h3 className="text-base font-semibold text-teal-300 mb-3">
                 Binaural Beats
               </h3>
@@ -48,7 +48,7 @@ export default function Home() {
                 </li>
               </ul>
             </div>
-            <div className="card rounded-lg p-6 bg-[#121826]/70 border border-slate-700/40">
+            <div className="card spotlight rounded-lg p-6 bg-[#121826]/70 border border-slate-700/40">
               <h3 className="text-base font-semibold text-teal-300 mb-3">
                 Isochronic Tones
               </h3>

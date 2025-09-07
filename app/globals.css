@@ -167,17 +167,11 @@ body {
   position: absolute;
   inset: 0;
   background: radial-gradient(
-      circle at var(--x, 50%) var(--y, 50%),
-      rgba(0, 161, 148, 0.38),
-      rgba(0, 161, 148, 0.12) 32%,
-      rgba(0, 161, 148, 0.06) 48%,
-      rgba(0, 161, 148, 0) 70%
-    ),
-    radial-gradient(
-      circle at var(--x, 50%) var(--y, 50%),
-      rgba(255, 255, 255, 0.18),
-      rgba(255, 255, 255, 0) 55%
-    );
+    circle at var(--x, 50%) var(--y, 50%),
+    rgba(255, 255, 255, 0.12),
+    rgba(255, 255, 255, 0.04) 35%,
+    rgba(255, 255, 255, 0) 70%
+  );
   opacity: 0;
   transition: opacity 0.5s ease;
   pointer-events: none;
@@ -191,4 +185,32 @@ body {
 .spotlight:active::before {
   opacity: 0.95;
   transition-duration: 120ms;
+}
+
+/* Accent intensification for explicitly tinted buttons */
+.spotlight.btn-accent::before {
+  background: radial-gradient(
+      circle at var(--x, 50%) var(--y, 50%),
+      rgba(0, 161, 148, 0.38),
+      rgba(0, 161, 148, 0.12) 32%,
+      rgba(0, 161, 148, 0.06) 48%,
+      rgba(0, 161, 148, 0) 70%
+    ),
+    radial-gradient(
+      circle at var(--x, 50%) var(--y, 50%),
+      rgba(255, 255, 255, 0.18),
+      rgba(255, 255, 255, 0) 55%
+    );
+}
+
+/* Card-specific override: very subtle neutral grey glow (slate) */
+.card.spotlight::before {
+  background: radial-gradient(
+    circle at var(--x, 50%) var(--y, 50%),
+    rgba(148, 163, 184, 0.14),
+    /* center (slate-400) */ rgba(148, 163, 184, 0.045) 35%,
+    rgba(148, 163, 184, 0.02) 55%,
+    rgba(148, 163, 184, 0) 72%
+  );
+  filter: blur(20px) saturate(120%);
 }

@@ -30,7 +30,7 @@ export default function SettingsPage() {
         </Link>
       </header>
       <section className="space-y-4">
-        <div className="card p-4 rounded-md space-y-3">
+        <div className="card spotlight p-4 rounded-md space-y-3">
           <h2 className="text-sm font-semibold tracking-wide">Theme</h2>
           <div className="flex gap-3">
             <button
@@ -51,7 +51,7 @@ export default function SettingsPage() {
             </button>
           </div>
         </div>
-        <div className="card p-4 rounded-md space-y-3">
+        <div className="card spotlight p-4 rounded-md space-y-3">
           <h2 className="text-sm font-semibold tracking-wide">
             Timer (auto-stop)
           </h2>
