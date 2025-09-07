@@ -1,26 +1,157 @@
 @import "tailwindcss";
 
+/* Brand Tokens */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --color-navy: #0a0f1c;
+  --color-teal: #00a194;
+  --color-lilac: #c6c9f4;
+  --color-bg: #f8f9fb;
+  --color-text: #1e1e1e;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 16px;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+/* Removed experimental @theme rule for broader tooling compatibility */
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --color-bg: #060a12;
+    --color-text: #f5f7fa;
   }
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+.logo-wordmark {
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  position: relative;
+  display: inline-block;
+  font-size: clamp(2.5rem, 8vw, 4rem);
+  color: var(--color-navy);
+}
+.logo-wordmark .sup-brand {
+  font-size: clamp(0.55rem, 1.2vw, 0.75rem);
+  letter-spacing: 0.05em;
+  position: absolute;
+  top: -0.8rem;
+  right: -2.4rem;
+  color: var(--color-teal);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.gradient-accent {
+  background: linear-gradient(90deg, var(--color-teal), var(--color-lilac));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Card surface (dark-first design) */
+.card {
+  background: rgba(
+    18,
+    24,
+    38,
+    0.72
+  ); /* translucent deep navy instead of white */
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 4px 24px -8px rgba(0, 0, 0, 0.6);
+  transition: background-color 160ms ease, border-color 160ms ease;
+}
+.card:hover {
+  background: rgba(24, 32, 48, 0.8);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.focus-ring:focus-visible {
+  outline: 2px solid var(--color-teal);
+  outline-offset: 2px;
+}
+
+/* Landing page hero wordmark */
+.hero-wordmark {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  letter-spacing: -0.045em;
+  font-size: 8rem; /* fixed size as requested */
+  line-height: 0.9;
+  color: #182132;
+  opacity: 0.7;
+  text-rendering: geometricPrecision;
+}
+
+/* Superscript branding next to hero */
+.sup-branding {
+  position: absolute;
+  top: -0.3rem;
+  right: 0;
+  font-size: 2rem;
+  letter-spacing: 0.12em;
+  font-weight: 500;
+  text-transform: lowercase;
+  color: var(--color-teal);
+  opacity: 0.5;
+  pointer-events: none;
+  user-select: none;
+}
+
+@media (max-width: 640px) {
+  .hero-wordmark {
+    font-size: 5rem;
+  }
+  .sup-branding {
+    top: -1rem;
+    right: -2.2rem;
+    font-size: 0.7rem;
+  }
+}
+
+/* Hero animated waveform background */
+@keyframes heroWaveDrift {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+  }
+  50% {
+    transform: translate3d(-2%, -1%, 0) rotate(0.25deg) scale(1.015);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+  }
+}
+@keyframes heroLinePulse {
+  0% {
+    stroke-dasharray: 60 760;
+    stroke-dashoffset: 0;
+  }
+  50% {
+    stroke-dasharray: 140 680;
+    stroke-dashoffset: -240;
+  }
+  100% {
+    stroke-dasharray: 60 760;
+    stroke-dashoffset: 0;
+  }
+}
+.animate-hero-wave {
+  animation: heroWaveDrift 46s linear infinite;
+}
+.animate-hero-line {
+  animation: heroLinePulse 34s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-hero-wave,
+  .animate-hero-line {
+    animation: none !important;
+  }
 }
