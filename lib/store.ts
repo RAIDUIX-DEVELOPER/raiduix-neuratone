@@ -86,21 +86,25 @@ export const useAppStore = create<AppState>()(
       addLayer: (l = {}) =>
         set((state) => {
           if (state.layers.length >= 5) return state; // enforce cap
+          const type = (l.type as any) || "binaural";
+          const base: any = {
+            id: crypto.randomUUID(),
+            type,
+            baseFreq: l.baseFreq ?? 440,
+            beatOffset: l.beatOffset ?? 0,
+            volume: l.volume ?? 0.5,
+            pan: l.pan ?? 0,
+            wave: l.wave ?? "sine",
+            isPlaying: false,
+          };
+          if (type === "isochronic") {
+            base.pulseFreq = l.pulseFreq ?? 10;
+          } else if (type === "ambient") {
+            base.ambientKey = l.ambientKey ?? "rain";
+          }
           return {
             ...state,
-            layers: [
-              ...state.layers,
-              {
-                id: crypto.randomUUID(),
-                type: (l.type as any) || "binaural",
-                baseFreq: l.baseFreq ?? 440,
-                beatOffset: l.beatOffset ?? 0,
-                volume: l.volume ?? 0.5,
-                pan: l.pan ?? 0,
-                wave: l.wave ?? "sine",
-                isPlaying: false,
-              },
-            ],
+            layers: [...state.layers, base],
           };
         }),
       removeLayer: (id) =>

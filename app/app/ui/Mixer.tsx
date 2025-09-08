@@ -3,7 +3,7 @@ import { useAppStore } from "@/lib/store";
 import { SoundLayer, createEngine } from "@/lib/audioEngine";
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { Play, Square, Plus, Trash2, Pencil } from "lucide-react";
+import { Play, Square, Plus, Trash2, Pencil, ChevronDown } from "lucide-react";
 
 interface EngineDataProvider {
   getWaveformData?: (arr: Uint8Array) => void;
@@ -217,6 +217,17 @@ export default function Mixer() {
   const hasChanges = nameChanged || structuralChanged;
 
   useEffect(() => {
+    // Auto-convert deprecated ambient layers to binaural until ambient returns
+    layers.forEach((l) => {
+      if ((l as any).type === "ambient") {
+        updateLayer(l.id, {
+          type: "binaural",
+          baseFreq: l.baseFreq ?? 440,
+          beatOffset: l.beatOffset ?? 0,
+          wave: l.wave || "sine",
+        });
+      }
+    });
     Object.keys(engines.current).forEach((id) => {
       if (!layers.find((l) => l.id === id)) {
         try {
@@ -470,8 +481,68 @@ export default function Mixer() {
             animate={{ opacity: 1, y: 0 }}
             className="card spotlight rounded-lg p-4 w-full min-w-[230px] bg-[#121826]/70 border border-slate-700/40"
           >
-            <h3 className="text-sm font-semibold mb-3 text-slate-200 flex items-center justify-between">
-              <span>Frequency {idx + 1}</span>
+            <h3 className="text-sm font-semibold mb-3 text-slate-200 flex items-center justify-between gap-2 flex-wrap">
+              <span>Layer {idx + 1}</span>
+              <div className="relative">
+                <select
+                  value={layer.type}
+                  onChange={(e) => {
+                    const newType = e.target.value as any;
+                    if (newType === layer.type) return;
+                    const old = engines.current[layer.id];
+                    const wasPlaying = layer.isPlaying;
+                    try {
+                      old?.stop();
+                    } catch {}
+                    try {
+                      old?.dispose();
+                    } catch {}
+                    delete engines.current[layer.id];
+                    let patch: any = { type: newType };
+                    if (newType === "binaural") {
+                      patch = {
+                        ...patch,
+                        baseFreq: layer.baseFreq ?? 440,
+                        beatOffset: 0,
+                        wave: layer.wave || "sine",
+                        pulseFreq: undefined,
+                      };
+                    } else if (newType === "isochronic") {
+                      patch = {
+                        ...patch,
+                        baseFreq: layer.baseFreq ?? 200,
+                        pulseFreq: layer.pulseFreq ?? 10,
+                        beatOffset: undefined,
+                      };
+                    }
+                    updateLayer(layer.id, patch);
+                    const updated = useAppStore
+                      .getState()
+                      .layers.find((l) => l.id === layer.id);
+                    if (updated) {
+                      engines.current[layer.id] = createEngine(
+                        updated as SoundLayer
+                      );
+                      if (wasPlaying) {
+                        // start new engine to maintain continuity
+                        engines.current[layer.id].start();
+                        updateLayer(layer.id, { isPlaying: true });
+                      }
+                    }
+                  }}
+                  className="spotlight bg-slate-900/70 border border-slate-600/60 text-[11px] rounded pl-2 pr-6 py-1 text-slate-200 focus:outline-none focus:ring-1 focus:ring-teal-500 appearance-none cursor-pointer"
+                >
+                  <option className="bg-slate-900" value="binaural">
+                    Binaural
+                  </option>
+                  <option className="bg-slate-900" value="isochronic">
+                    Isochronic
+                  </option>
+                </select>
+                <span className="pointer-events-none absolute inset-y-0 right-1 flex items-center text-slate-400">
+                  <ChevronDown size={14} />
+                </span>
+              </div>
               <button
                 onClick={() => togglePlay(layer)}
                 className={`spotlight inline-flex items-center gap-1 rounded px-2 py-1 text-[11px] font-medium transition ${
@@ -516,73 +587,188 @@ export default function Mixer() {
               </button>
             </h3>
             <div className="space-y-3">
-              <div>
-                <div className="flex items-stretch mb-2">
-                  <div className="flex-1 text-center rounded-md bg-[#121826] border border-slate-700/60 py-2 text-slate-200 text-sm font-medium">
-                    {layer.baseFreq}{" "}
-                    <span className="text-[10px] font-normal">Hz</span>
+              {layer.type === "binaural" && (
+                <div>
+                  <div className="flex items-stretch mb-2">
+                    <div className="flex-1 text-center rounded-md bg-[#121826] border border-slate-700/60 py-2 text-slate-200 text-sm font-medium">
+                      {layer.baseFreq}{" "}
+                      <span className="text-[10px] font-normal">Hz</span>
+                    </div>
                   </div>
-                </div>
-                <input
-                  type="range"
-                  min={0}
-                  max={1000}
-                  value={layer.baseFreq}
-                  onChange={(e) => {
-                    const v = Number(e.target.value);
-                    updateLayer(layer.id, { baseFreq: v });
-                    engines.current[layer.id]?.update({ baseFreq: v });
-                  }}
-                  className="w-full"
-                />
-                <div className="flex justify-between text-[10px] text-slate-400 mt-1">
-                  <span>0 Hz</span>
-                  <span>1000Hz</span>
-                </div>
-                <div className="mt-3 flex items-center gap-2">
                   <input
-                    type="number"
+                    type="range"
                     min={0}
                     max={1000}
-                    value={layer.baseFreq}
+                    value={layer.baseFreq || 0}
                     onChange={(e) => {
-                      const v = Math.max(
-                        0,
-                        Math.min(1000, Number(e.target.value))
-                      );
+                      const v = Number(e.target.value);
                       updateLayer(layer.id, { baseFreq: v });
                       engines.current[layer.id]?.update({ baseFreq: v });
                     }}
-                    className="w-24 rounded border border-slate-700/60 bg-slate-900/40 px-2 py-1 text-xs"
+                    className="w-full"
                   />
-                  <span className="text-[10px] text-slate-400">Manual</span>
+                  <div className="flex justify-between text-[10px] text-slate-400 mt-1">
+                    <span>0 Hz</span>
+                    <span>1000Hz</span>
+                  </div>
+                  <div className="mt-3 flex items-center gap-2">
+                    <input
+                      type="number"
+                      min={0}
+                      max={1000}
+                      value={layer.baseFreq || 0}
+                      onChange={(e) => {
+                        const v = Math.max(
+                          0,
+                          Math.min(1000, Number(e.target.value))
+                        );
+                        updateLayer(layer.id, { baseFreq: v });
+                        engines.current[layer.id]?.update({ baseFreq: v });
+                      }}
+                      className="w-24 rounded border border-slate-700/60 bg-slate-900/40 px-2 py-1 text-xs"
+                    />
+                    <span className="text-[10px] text-slate-400">Manual</span>
+                  </div>
+                  <div className="mt-4">
+                    <label className="block text-[10px] mb-1 uppercase tracking-wide text-slate-400">
+                      Beat Offset {layer.beatOffset} Hz
+                    </label>
+                    <input
+                      type="range"
+                      min={0}
+                      max={40}
+                      value={layer.beatOffset || 0}
+                      onChange={(e) => {
+                        const v = Number(e.target.value);
+                        updateLayer(layer.id, { beatOffset: v });
+                        // Simple in-place update; Tone path updates right oscillator; fallback path updates rOsc
+                        engines.current[layer.id]?.update({ beatOffset: v });
+                      }}
+                      className="w-full"
+                    />
+                    <div className="flex justify-between text-[10px] text-slate-400 mt-1">
+                      <span>0 Hz</span>
+                      <span>40Hz</span>
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <div>
-                <div className="text-[10px] uppercase tracking-wide mb-1 text-slate-400">
-                  Waveform
-                </div>
-                <div className="flex gap-1">
-                  {(["sine", "square", "sawtooth", "triangle"] as const).map(
-                    (w) => (
-                      <button
-                        key={w}
-                        onClick={() => {
-                          updateLayer(layer.id, { wave: w });
-                          engines.current[layer.id]?.update({ wave: w });
+              )}
+              {layer.type === "isochronic" && (
+                <div>
+                  <div className="flex items-stretch mb-2">
+                    <div className="flex-1 text-center rounded-md bg-[#121826] border border-slate-700/60 py-2 text-slate-200 text-sm font-medium">
+                      {layer.baseFreq || 200}{" "}
+                      <span className="text-[10px] font-normal">Hz</span>
+                    </div>
+                  </div>
+                  <label className="block text-[10px] mb-1 uppercase tracking-wide text-slate-400">
+                    Base Frequency
+                  </label>
+                  <input
+                    type="range"
+                    min={0}
+                    max={1000}
+                    value={layer.baseFreq || 200}
+                    onChange={(e) => {
+                      const v = Number(e.target.value);
+                      updateLayer(layer.id, { baseFreq: v });
+                      engines.current[layer.id]?.update({ baseFreq: v });
+                    }}
+                    className="w-full"
+                  />
+                  <div className="flex justify-between text-[10px] text-slate-400 mt-1">
+                    <span>0 Hz</span>
+                    <span>1000Hz</span>
+                  </div>
+                  <div className="mt-3 flex items-center gap-2">
+                    <input
+                      type="number"
+                      min={0}
+                      max={1000}
+                      value={layer.baseFreq || 200}
+                      onChange={(e) => {
+                        const v = Math.max(
+                          0,
+                          Math.min(1000, Number(e.target.value))
+                        );
+                        updateLayer(layer.id, { baseFreq: v });
+                        engines.current[layer.id]?.update({ baseFreq: v });
+                      }}
+                      className="w-24 rounded border border-slate-700/60 bg-slate-900/40 px-2 py-1 text-xs"
+                    />
+                    <span className="text-[10px] text-slate-400">Manual</span>
+                  </div>
+                  <div className="mt-5">
+                    <label className="block text-[10px] mb-1 uppercase tracking-wide text-slate-400">
+                      Pulse Frequency (Pulses / sec)
+                    </label>
+                    <input
+                      type="range"
+                      min={1}
+                      max={100}
+                      value={layer.pulseFreq || 10}
+                      onChange={(e) => {
+                        const v = Number(e.target.value);
+                        updateLayer(layer.id, { pulseFreq: v });
+                        engines.current[layer.id]?.update({ pulseFreq: v });
+                      }}
+                      className="w-full"
+                    />
+                    <div className="flex justify-between text-[10px] text-slate-400 mt-1">
+                      <span>1</span>
+                      <span>100</span>
+                    </div>
+                    <div className="mt-3 flex items-center gap-2">
+                      <input
+                        type="number"
+                        min={1}
+                        max={100}
+                        value={layer.pulseFreq || 10}
+                        onChange={(e) => {
+                          const v = Math.max(
+                            1,
+                            Math.min(100, Number(e.target.value))
+                          );
+                          updateLayer(layer.id, { pulseFreq: v });
+                          engines.current[layer.id]?.update({ pulseFreq: v });
                         }}
-                        className={`flex-1 rounded-md px-2 py-1 text-[10px] capitalize border transition ${
-                          layer.wave === w
-                            ? "bg-teal-500/90 border-teal-400 text-white"
-                            : "bg-slate-800/60 border-slate-700/60 text-slate-300 hover:bg-slate-700/60"
-                        }`}
-                        type="button"
-                      >
-                        {w.replace("sawtooth", "saw")}
-                      </button>
-                    )
-                  )}
+                        className="w-24 rounded border border-slate-700/60 bg-slate-900/40 px-2 py-1 text-xs"
+                      />
+                      <span className="text-[10px] text-slate-400">Manual</span>
+                    </div>
+                  </div>
                 </div>
+              )}
+              {/* Ambient controls removed for now */}
+              <div>
+                {layer.type !== "ambient" && (
+                  <>
+                    <div className="text-[10px] uppercase tracking-wide mb-1 text-slate-400">
+                      Waveform
+                    </div>
+                    <div className="flex gap-1">
+                      {(
+                        ["sine", "square", "sawtooth", "triangle"] as const
+                      ).map((w) => (
+                        <button
+                          key={w}
+                          onClick={() => {
+                            updateLayer(layer.id, { wave: w });
+                            engines.current[layer.id]?.update({ wave: w });
+                          }}
+                          className={`flex-1 rounded-md px-2 py-1 text-[10px] capitalize border transition ${
+                            layer.wave === w
+                              ? "bg-teal-500/90 border-teal-400 text-white"
+                              : "bg-slate-800/60 border-slate-700/60 text-slate-300 hover:bg-slate-700/60"
+                          }`}
+                          type="button"
+                        >
+                          {w.replace("sawtooth", "saw")}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
               <div>
                 <label className="block text-[10px] mb-1 uppercase tracking-wide text-slate-400">
