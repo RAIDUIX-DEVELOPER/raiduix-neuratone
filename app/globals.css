@@ -30,7 +30,6 @@ body {
 
 .logo-wordmark {
   font-weight: 700;
-  letter-spacing: -0.5px;
   position: relative;
   display: inline-block;
   font-size: clamp(2.5rem, 8vw, 4rem);
@@ -85,8 +84,8 @@ body {
   letter-spacing: -0.045em;
   font-size: 8rem; /* fixed size as requested */
   line-height: 0.9;
-  color: #182132;
-  opacity: 0.7;
+  color: #363d49;
+  opacity: 1;
   text-rendering: geometricPrecision;
 }
 
@@ -100,7 +99,7 @@ body {
   font-weight: 500;
   text-transform: lowercase;
   color: var(--color-teal);
-  opacity: 0.5;
+  opacity: 1;
   pointer-events: none;
   user-select: none;
 }
