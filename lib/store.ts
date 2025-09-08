@@ -18,6 +18,10 @@ interface AppState {
   savePreset: (name: string) => void;
   loadPreset: (id: string) => void;
   deletePreset: (id: string) => void;
+  resetLayer: (id: string) => void;
+  resetAllLayers: () => void;
+  updatePreset: (id: string, name: string) => void;
+  clearLayers: () => void;
 }
 
 // Start with no default presets; user-defined only.
@@ -111,10 +115,61 @@ export const useAppStore = create<AppState>()(
             l.id === id ? { ...l, ...patch } : l
           ),
         })),
+      resetLayer: (id) =>
+        set((state) => ({
+          ...state,
+          layers: state.layers.map((l) =>
+            l.id === id
+              ? {
+                  ...l,
+                  type: "binaural",
+                  baseFreq: 440,
+                  beatOffset: 0,
+                  volume: 0.5,
+                  pan: 0,
+                  wave: "sine",
+                  isPlaying: false,
+                }
+              : l
+          ),
+        })),
+      resetAllLayers: () =>
+        set((state) => ({
+          ...state,
+          layers: state.layers.map((l) => ({
+            ...l,
+            type: "binaural",
+            baseFreq: 440,
+            beatOffset: 0,
+            volume: 0.5,
+            pan: 0,
+            wave: "sine",
+            isPlaying: false,
+          })),
+        })),
       deletePreset: (id) =>
         set((state) => ({
           ...state,
           presets: state.presets.filter((p) => p.id !== id),
+        })),
+      updatePreset: (id, name) =>
+        set((state) => {
+          const exists = state.presets.find((p) => p.id === id);
+          if (!exists) return state;
+          const updated = {
+            ...exists,
+            name,
+            layers: get().layers.map((l) => ({ ...l })),
+          };
+          return {
+            ...state,
+            presets: state.presets.map((p) => (p.id === id ? updated : p)),
+          };
+        }),
+      clearLayers: () =>
+        set((state) => ({
+          ...state,
+          layers: [],
         })),
       savePreset: (name) => {
         const existing = get().presets.find(

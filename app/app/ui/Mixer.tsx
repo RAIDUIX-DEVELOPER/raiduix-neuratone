@@ -3,7 +3,7 @@ import { useAppStore } from "@/lib/store";
 import { SoundLayer, createEngine } from "@/lib/audioEngine";
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { Play, Square, Plus, Trash2 } from "lucide-react";
+import { Play, Square, Plus, Trash2, Pencil } from "lucide-react";
 
 interface EngineDataProvider {
   getWaveformData?: (arr: Uint8Array) => void;
@@ -168,6 +168,9 @@ export default function Mixer() {
     presets,
     loadPreset,
     deletePreset,
+    resetLayer,
+    resetAllLayers,
+    clearLayers,
   } = useAppStore((s) => ({
     layers: s.layers,
     updateLayer: s.updateLayer,
@@ -177,8 +180,12 @@ export default function Mixer() {
     presets: s.presets,
     loadPreset: s.loadPreset,
     deletePreset: (s as any).deletePreset,
+    resetLayer: (s as any).resetLayer,
+    resetAllLayers: (s as any).resetAllLayers,
+    clearLayers: (s as any).clearLayers,
   }));
-  const [presetName, setPresetName] = useState("");
+  const [presetName, setPresetName] = useState("Unnamed Preset");
+  const [editingTitle, setEditingTitle] = useState(false);
   const engines = useRef<EngineRef>({});
   const [showWave, setShowWave] = useState(true);
   const [showSpec, setShowSpec] = useState(true);
@@ -190,6 +197,24 @@ export default function Mixer() {
     id: string;
     name: string;
   } | null>(null);
+  const [showResetAllModal, setShowResetAllModal] = useState(false);
+  const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
+  const [loadedPresetId, setLoadedPresetId] = useState<string | null>(null);
+  const lastLoadedSnapshot = useRef<string>("[]");
+
+  function layerSnapshot() {
+    return layers.map(({ id, isPlaying, ...rest }) => rest);
+  }
+  const currentSnapshot = JSON.stringify(layerSnapshot());
+  const loadedPreset = loadedPresetId
+    ? presets.find((p) => p.id === loadedPresetId)
+    : null;
+  const nameChanged = loadedPreset
+    ? loadedPreset.name !== presetName
+    : !!presetName.trim();
+  const structuralChanged =
+    loadedPresetId === null || currentSnapshot !== lastLoadedSnapshot.current;
+  const hasChanges = nameChanged || structuralChanged;
 
   useEffect(() => {
     Object.keys(engines.current).forEach((id) => {
@@ -252,45 +277,153 @@ export default function Mixer() {
     removeLayer(id);
   }
 
+  function handleLoadPreset(id: string) {
+    const p = presets.find((pp) => pp.id === id);
+    if (p) {
+      loadPreset(id);
+      setPresetName(p.name || "Unnamed Preset");
+      setLoadedPresetId(id);
+      setTimeout(() => {
+        lastLoadedSnapshot.current = JSON.stringify(layerSnapshot());
+      }, 0);
+    }
+  }
   return (
     <div className="space-y-4">
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          if (presetName.trim()) {
-            const exists = presets.some(
-              (p) => p.name.toLowerCase() === presetName.trim().toLowerCase()
-            );
-            if (exists) {
-              setPendingPresetName(presetName.trim());
-              setShowOverwriteModal(true);
-            } else {
-              savePreset(presetName.trim());
-              setPresetName("");
-            }
+          const name = (presetName || "Unnamed Preset").trim();
+          if (!name) return;
+          const exists = presets.some(
+            (p) => p.name.toLowerCase() === name.toLowerCase()
+          );
+          if (exists) {
+            setPendingPresetName(name);
+            setShowOverwriteModal(true);
+          } else {
+            savePreset(name);
           }
         }}
-        className="flex gap-2 items-end flex-wrap w-full"
+        className="flex gap-4 items-center flex-wrap w-full"
       >
-        <div className="flex flex-col">
-          <label className="text-[10px] uppercase tracking-wide">
-            Save Preset
-          </label>
-          <input
-            value={presetName}
-            onChange={(e) => setPresetName(e.target.value)}
-            placeholder="Name"
-            className="border rounded px-2 py-1 text-xs"
-          />
+        <div className="flex items-center gap-4 min-w-[320px] flex-wrap">
+          <div className="flex items-center gap-2">
+            {editingTitle ? (
+              <input
+                autoFocus
+                value={presetName}
+                onChange={(e) =>
+                  setPresetName(e.target.value || "Unnamed Preset")
+                }
+                onBlur={() => setEditingTitle(false)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    (e.target as HTMLInputElement).blur();
+                  } else if (e.key === "Escape") {
+                    setEditingTitle(false);
+                  }
+                }}
+                className="bg-slate-900/60 border border-slate-600/60 rounded px-2 py-1 text-sm font-medium text-slate-200 focus:outline-none focus:ring-1 focus:ring-teal-500"
+              />
+            ) : (
+              <h1 className="text-base font-semibold text-slate-200 flex items-center gap-2 select-none">
+                <span>{presetName || "Unnamed Preset"}</span>
+                <button
+                  type="button"
+                  onClick={() => setEditingTitle(true)}
+                  aria-label="Edit preset title"
+                  className="spotlight inline-flex items-center justify-center rounded p-1 text-slate-400 hover:text-amber-300 hover:bg-slate-700/40 transition"
+                >
+                  <Pencil size={14} />
+                </button>
+              </h1>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {!loadedPresetId && (
+              <button
+                type="button"
+                disabled={!hasChanges || !presetName.trim()}
+                onClick={() => {
+                  const name = (presetName || "Unnamed Preset").trim();
+                  if (!name) return;
+                  savePreset(name);
+                  const created = presets.find(
+                    (p) => p.name.toLowerCase() === name.toLowerCase()
+                  );
+                  if (created) {
+                    setLoadedPresetId(created.id);
+                    lastLoadedSnapshot.current = JSON.stringify(
+                      layerSnapshot()
+                    );
+                  }
+                }}
+                className="spotlight px-3 py-1 rounded text-[11px] font-medium border border-teal-600/50 bg-teal-600/80 hover:bg-teal-500 text-white disabled:opacity-30"
+              >
+                Save
+              </button>
+            )}
+            {loadedPresetId && (
+              <>
+                <button
+                  type="button"
+                  disabled={!hasChanges || !presetName.trim()}
+                  onClick={() => {
+                    const name = (presetName || "Unnamed Preset").trim();
+                    if (!name) return;
+                    savePreset(name);
+                    const created = presets.find(
+                      (p) => p.name.toLowerCase() === name.toLowerCase()
+                    );
+                    if (created) {
+                      setLoadedPresetId(created.id);
+                      lastLoadedSnapshot.current = JSON.stringify(
+                        layerSnapshot()
+                      );
+                    }
+                  }}
+                  className="spotlight px-3 py-1 rounded text-[11px] font-medium border border-teal-600/50 bg-teal-600/80 hover:bg-teal-500 text-white disabled:opacity-30"
+                >
+                  SAVE AS NEW
+                </button>
+                <button
+                  type="button"
+                  disabled={!hasChanges}
+                  onClick={() => {
+                    if (!loadedPresetId) return;
+                    const name = (presetName || "Unnamed Preset").trim();
+                    const updater: any = useAppStore.getState();
+                    if (updater.updatePreset)
+                      updater.updatePreset(loadedPresetId, name);
+                    lastLoadedSnapshot.current = JSON.stringify(
+                      layerSnapshot()
+                    );
+                  }}
+                  className="spotlight px-3 py-1 rounded text-[11px] font-medium border border-amber-500/50 bg-amber-600/80 hover:bg-amber-500 text-white disabled:opacity-30"
+                >
+                  Update
+                </button>
+              </>
+            )}
+          </div>
         </div>
-        <button
-          type="submit"
-          className="bg-teal-500 text-white text-xs px-3 py-1 rounded self-start mt-4 disabled:opacity-40"
-          disabled={!presetName.trim()}
-        >
-          Save
-        </button>
-        <div className="flex gap-2 ml-auto mt-4">
+        <div className="flex gap-2 ml-auto mt-1">
+          <button
+            type="button"
+            onClick={() => setShowResetAllModal(true)}
+            className="spotlight px-3 py-1 rounded text-xs font-medium border border-amber-500/50 bg-amber-600/80 hover:bg-amber-500 text-white mr-4"
+          >
+            Reset All
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowDeleteAllModal(true)}
+            className="spotlight px-3 py-1 rounded text-xs font-medium border border-red-500/50 bg-red-600/80 hover:bg-red-500 text-white mr-4"
+          >
+            Delete All
+          </button>
           <button
             className="spotlight px-3 py-1 rounded bg-slate-700/60 hover:bg-slate-600/60 text-xs font-medium text-slate-200 border border-slate-600/50"
             type="button"
@@ -308,7 +441,7 @@ export default function Mixer() {
           <button
             type="button"
             onClick={() => setShowWave((v) => !v)}
-            className={`spotlight px-3 py-1 rounded text-xs font-medium border border-slate-600/50 ${
+            className={`spotlight px-3 py-1 rounded text-xs font-medium border border-slate-600/50 ml-4 ${
               showWave
                 ? "bg-teal-600/70 text-white"
                 : "bg-slate-700/60 text-slate-200 hover:bg-slate-600/60"
@@ -349,6 +482,30 @@ export default function Mixer() {
               >
                 {layer.isPlaying ? <Square size={12} /> : <Play size={12} />}
                 {layer.isPlaying ? "Stop" : "Play"}
+              </button>
+              <button
+                onClick={() => {
+                  // stop engine first
+                  const eng = engines.current[layer.id];
+                  if (eng) {
+                    try {
+                      eng.stop();
+                    } catch {}
+                  }
+                  resetLayer(layer.id);
+                  // ensure engine reflects defaults
+                  engines.current[layer.id]?.update({
+                    baseFreq: 440,
+                    beatOffset: 0,
+                    volume: 0.5,
+                    pan: 0,
+                    wave: "sine",
+                  });
+                }}
+                className="spotlight ml-2 text-[11px] px-2 py-1 rounded bg-slate-700/60 hover:bg-slate-600/60 text-slate-300 border border-slate-600/50"
+                aria-label="Reset layer to defaults"
+              >
+                Reset
               </button>
               <button
                 onClick={() => handleRemoveLayer(layer.id)}
@@ -502,9 +659,53 @@ export default function Mixer() {
               >
                 {p.name}
               </span>
+              {p.layers && p.layers.length > 0 && (
+                <div className="space-y-1 mt-1 overflow-auto max-h-40 pr-1 scrollbar-thin scrollbar-thumb-slate-700/60 scrollbar-track-transparent">
+                  {p.layers.map((l, idx) => {
+                    const parts: string[] = [];
+                    parts.push(
+                      `Layer ${idx + 1} – ${l.type
+                        .charAt(0)
+                        .toUpperCase()}${l.type.slice(1)}`
+                    );
+                    if (l.type === "binaural") {
+                      if (typeof l.baseFreq === "number")
+                        parts.push(`Base frequency: ${l.baseFreq} Hz`);
+                      if (typeof l.beatOffset === "number")
+                        parts.push(`Beat offset: ${l.beatOffset} Hz`);
+                      if (l.wave) parts.push(`Waveform: ${l.wave}`);
+                    } else if (l.type === "isochronic") {
+                      if (typeof l.pulseFreq === "number")
+                        parts.push(`Pulse frequency: ${l.pulseFreq} Hz`);
+                      if (l.wave) parts.push(`Waveform: ${l.wave}`);
+                    } else if (l.type === "ambient") {
+                      if (l.ambientKey)
+                        parts.push(`Ambient source: ${l.ambientKey}`);
+                    }
+                    parts.push(`Volume: ${Math.round(l.volume * 100)}%`);
+                    // Pan formatting: center, left xx%, right xx%
+                    let panLabel = "center";
+                    if (l.pan < -0.01)
+                      panLabel = `left ${Math.round(Math.abs(l.pan) * 100)}%`;
+                    else if (l.pan > 0.01)
+                      panLabel = `right ${Math.round(Math.abs(l.pan) * 100)}%`;
+                    parts.push(`Pan: ${panLabel}`);
+                    return (
+                      <div
+                        key={l.id}
+                        className="text-[10px] leading-snug text-slate-400 border border-slate-700/40 rounded p-1 bg-slate-800/40"
+                      >
+                        {parts.map((line, i) => (
+                          <div key={i}>{line}</div>
+                        ))}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
               <div className="flex gap-2">
                 <button
-                  onClick={() => loadPreset(p.id)}
+                  onClick={() => handleLoadPreset(p.id)}
                   className="flex-1 text-[11px] bg-teal-600/80 hover:bg-teal-500 text-white rounded px-2 py-1 font-medium"
                 >
                   Load
@@ -590,6 +791,89 @@ export default function Mixer() {
                 className="px-3 py-1 rounded text-xs font-medium bg-red-600/80 hover:bg-red-500 text-white"
               >
                 Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showResetAllModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-lg border border-slate-700/60 bg-[#0d121b] p-5 shadow-xl space-y-4">
+            <h3 className="text-sm font-semibold text-slate-200">
+              Reset All Layers?
+            </h3>
+            <p className="text-xs text-slate-400">
+              This will reset every layer back to the default settings (binaural
+              sine wave at 440 Hz, 0 beat offset, 50% volume, centered pan). Any
+              playing layers will stop. Continue?
+            </p>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                onClick={() => setShowResetAllModal(false)}
+                className="px-3 py-1 rounded text-xs border border-slate-600/50 bg-slate-800/60 hover:bg-slate-700/60 text-slate-200"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  // stop all engines first
+                  layers.forEach((l) => {
+                    const e = engines.current[l.id];
+                    if (e) {
+                      try {
+                        e.stop();
+                      } catch {}
+                    }
+                  });
+                  resetAllLayers();
+                  setShowResetAllModal(false);
+                }}
+                className="px-3 py-1 rounded text-xs font-medium bg-teal-600/80 hover:bg-teal-500 text-white"
+              >
+                Reset All
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showDeleteAllModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-lg border border-slate-700/60 bg-[#0d121b] p-5 shadow-xl space-y-4">
+            <h3 className="text-sm font-semibold text-red-300">
+              Delete All Layers?
+            </h3>
+            <p className="text-xs text-slate-400">
+              This will permanently remove every layer from the mixer. This
+              action cannot be undone. Are you absolutely sure?
+            </p>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                onClick={() => setShowDeleteAllModal(false)}
+                className="px-3 py-1 rounded text-xs border border-slate-600/50 bg-slate-800/60 hover:bg-slate-700/60 text-slate-200"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  // stop all engines
+                  layers.forEach((l) => {
+                    const e = engines.current[l.id];
+                    if (e) {
+                      try {
+                        e.stop();
+                      } catch {}
+                      try {
+                        e.dispose?.();
+                      } catch {}
+                      delete engines.current[l.id];
+                    }
+                  });
+                  clearLayers();
+                  setShowDeleteAllModal(false);
+                }}
+                className="px-3 py-1 rounded text-xs font-medium bg-red-600/80 hover:bg-red-500 text-white"
+              >
+                Delete All
               </button>
             </div>
           </div>

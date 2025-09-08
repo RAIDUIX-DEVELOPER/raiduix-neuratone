@@ -95,6 +95,29 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
         return;
       }
     }
+    // Tone already loaded but oscillators disposed previously
+    if (tone?.Oscillator && tone?.Merge && !left) {
+      left = new tone.Oscillator(layer.baseFreq || 200, layer.wave || "sine");
+      right = new tone.Oscillator(
+        (layer.baseFreq || 200) + (layer.beatOffset || 10),
+        layer.wave || "sine"
+      );
+      merger = new tone.Merge();
+      volNode = new tone.Volume(tone.gainToDb(layer.volume));
+      panNode = new tone.Panner(layer.pan || 0);
+      left.connect(merger, 0, 0);
+      right.connect(merger, 0, 1);
+      analyserToneFft = new tone.Analyser("fft", 1024);
+      analyserToneWave = new tone.Analyser("waveform", 1024);
+      merger.chain(
+        panNode,
+        volNode,
+        analyserToneFft,
+        tone.Destination || tone.getDestination?.()
+      );
+      volNode.connect?.(analyserToneWave);
+      return;
+    }
     if (!lOsc && ctx) {
       lOsc = ctx.createOscillator();
       rOsc = ctx.createOscillator();
@@ -177,6 +200,7 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
       if (l.beatOffset !== undefined) layer.beatOffset = l.beatOffset;
       if (l.volume !== undefined) layer.volume = l.volume;
       if (l.pan !== undefined) layer.pan = l.pan;
+      const waveChanged = l.wave !== undefined && l.wave !== layer.wave;
       if (l.wave !== undefined) layer.wave = l.wave;
       if (left && right) {
         if (l.baseFreq !== undefined) {
@@ -192,9 +216,32 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
         if (l.pan !== undefined && panNode) {
           panNode.pan.value = l.pan;
         }
-        if (l.wave && left && right) {
-          left.type = l.wave;
-          right.type = l.wave;
+        if (waveChanged && left && right) {
+          // Fully recreate Tone oscillators to guarantee no layering artifacts
+          try {
+            left.stop();
+            right.stop();
+          } catch {}
+          try {
+            left.dispose?.();
+            right.dispose?.();
+          } catch {}
+          left = new tone.Oscillator(
+            layer.baseFreq || 200,
+            layer.wave || "sine"
+          );
+          right = new tone.Oscillator(
+            (layer.baseFreq || 200) + (layer.beatOffset || 10),
+            layer.wave || "sine"
+          );
+          left.connect(merger, 0, 0);
+          right.connect(merger, 0, 1);
+          if (playing) {
+            try {
+              left.start();
+              right.start();
+            } catch {}
+          }
         }
         return;
       }
@@ -212,9 +259,49 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
         if (l.pan !== undefined && stereo) {
           stereo.pan.value = l.pan;
         }
-        if (l.wave && lOsc && rOsc) {
-          lOsc.type = l.wave;
-          rOsc.type = l.wave;
+        if (waveChanged && lOsc && rOsc && ctx) {
+          // Recreate oscillators to guarantee only one active set
+          try {
+            lOsc.stop();
+            rOsc.stop();
+          } catch {}
+          lOsc.disconnect();
+          rOsc.disconnect();
+          lOsc = ctx.createOscillator();
+          rOsc = ctx.createOscillator();
+          lOsc.type = layer.wave || "sine";
+          rOsc.type = layer.wave || "sine";
+          lOsc.frequency.value = layer.baseFreq || 200;
+          rOsc.frequency.value =
+            (layer.baseFreq || 200) + (layer.beatOffset || 10);
+          // Reconnect chain
+          if (!mergerNode) mergerNode = ctx.createChannelMerger(2);
+          lOsc.connect(mergerNode, 0, 0);
+          rOsc.connect(mergerNode, 0, 1);
+          // Ensure downstream nodes exist
+          if (!stereo) {
+            stereo = ctx.createStereoPanner();
+            stereo.pan.value = layer.pan || 0;
+          }
+          if (!gain) {
+            gain = ctx.createGain();
+            gain.gain.value = layer.volume;
+          }
+          if (!analyserNode) {
+            analyserNode = ctx.createAnalyser();
+            analyserNode.fftSize = 2048;
+          }
+          mergerNode
+            .connect(stereo)
+            .connect(gain)
+            .connect(analyserNode)
+            .connect(ctx.destination);
+          if (playing) {
+            try {
+              lOsc.start();
+              rOsc.start();
+            } catch {}
+          }
         }
       }
     },
@@ -387,6 +474,7 @@ export function createIsochronic(layer: SoundLayer): EngineHandle {
       if (l.pulseFreq !== undefined) layer.pulseFreq = l.pulseFreq;
       if (l.volume !== undefined) layer.volume = l.volume;
       if (l.pan !== undefined) layer.pan = l.pan;
+      const waveChanged = l.wave !== undefined && l.wave !== layer.wave;
       if (l.wave !== undefined) layer.wave = l.wave;
       if (osc) {
         if (l.pulseFreq !== undefined) {
@@ -404,8 +492,8 @@ export function createIsochronic(layer: SoundLayer): EngineHandle {
         if (l.pan !== undefined && panNode) {
           panNode.pan.value = l.pan;
         }
-        if (l.wave && osc) {
-          osc.type = l.wave;
+        if (waveChanged && osc) {
+          osc.type = layer.wave || osc.type;
         }
         return;
       }
@@ -429,8 +517,40 @@ export function createIsochronic(layer: SoundLayer): EngineHandle {
         if (l.pan !== undefined && stereo) {
           stereo.pan.value = l.pan;
         }
-        if (l.wave && carrier) {
-          carrier.type = l.wave;
+        if (waveChanged && carrier && ctx) {
+          try {
+            carrier.stop();
+          } catch {}
+          carrier.disconnect();
+          carrier = ctx.createOscillator();
+          carrier.type = layer.wave || "sine";
+          carrier.frequency.value = 200;
+          // Reconnect chain
+          if (!gate) {
+            gate = ctx.createGain();
+            gate.gain.value = 0;
+          }
+          if (!stereo) {
+            stereo = ctx.createStereoPanner();
+            stereo.pan.value = layer.pan || 0;
+          }
+          if (!gain) {
+            gain = ctx.createGain();
+            gain.gain.value = layer.volume;
+          }
+          if (!analyserNode) {
+            analyserNode = ctx.createAnalyser();
+            analyserNode.fftSize = 2048;
+          }
+          carrier
+            .connect(gate)
+            .connect(stereo)
+            .connect(gain)
+            .connect(analyserNode)
+            .connect(ctx.destination);
+          if (playing) {
+            carrier.start();
+          }
         }
       }
     },

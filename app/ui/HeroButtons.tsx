@@ -6,7 +6,7 @@ export default function HeroButtons() {
     <div className="mt-10 flex flex-row items-center gap-3 flex-wrap justify-center">
       <Link
         href="/app"
-        className="spotlight btn-accent focus-ring inline-flex items-center justify-center rounded-md border border-slate-800/80 bg-[#121826]/70 w-40 h-11 text-sm font-medium text-slate-300 shadow-[0_2px_6px_-1px_rgba(0,0,0,0.5)] transition hover:bg-[#1b2331] hover:text-slate-200"
+        className="spotlight spotlight-launch focus-ring inline-flex items-center justify-center rounded-md border border-orange-500 bg-[#121826]/70 w-40 h-11 text-sm font-medium text-orange-300 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.55),0_0_0_1px_rgba(251,191,36,0.25)] transition hover:bg-[#1b2331] hover:text-amber-200 hover:border-amber-400/80"
       >
         Launch App
       </Link>
@@ -35,7 +35,7 @@ export default function HeroButtons() {
         href="https://x.com/raiduix"
         target="_blank"
         rel="noopener noreferrer"
-        className="spotlight btn-accent inline-flex items-center justify-center gap-2 rounded-md w-40 h-11 text-[11px] font-medium tracking-wide text-slate-300/70 ring-1 ring-white/5 hover:text-white hover:ring-slate-400/30 transition-colors backdrop-blur-[15px] bg-[#121826]/50"
+        className="spotlight spotlight-x inline-flex items-center justify-center gap-2 rounded-md w-40 h-11 text-[11px] font-medium tracking-wide text-slate-300/70 ring-1 ring-white/5 hover:text-white hover:ring-slate-400/30 transition-colors backdrop-blur-[15px] bg-[#121826]/50"
       >
         <svg
           width="14"

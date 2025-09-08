@@ -16,7 +16,7 @@ export default function Home() {
       </section>
 
       {/* Benefits Section */}
-      <section className="px-6 pb-24 -mt-8">
+      <section className="px-6 pb-24 -mt-12 z-1">
         <div className="max-w-5xl mx-auto">
           <h2 className="text-center text-xl font-semibold tracking-tight text-slate-200 mb-10">
             Why Layer Binaural & Isochronic Tones?

@@ -3,7 +3,7 @@
 /* Brand Tokens */
 :root {
   --color-navy: #0a0f1c;
-  --color-teal: #00a194;
+  --color-teal: #00ffdd;
   --color-lilac: #c6c9f4;
   --color-bg: #f8f9fb;
   --color-text: #1e1e1e;
@@ -32,10 +32,9 @@ body {
   font-weight: 700;
   position: relative;
   display: inline-block;
-  font-size: clamp(2.5rem, 8vw, 4rem);
-  color: var(--color-navy);
-}
-.logo-wordmark .sup-brand {
+  font-size: clamp(3.25rem, 16vw, 8rem); /* fluid for mobile */
+  color: #334157;
+  opacity: 0.85;
   font-size: clamp(0.55rem, 1.2vw, 0.75rem);
   letter-spacing: 0.05em;
   position: absolute;
@@ -82,9 +81,9 @@ body {
   font-family: var(--font-sans);
   font-weight: 700;
   letter-spacing: -0.045em;
-  font-size: 8rem; /* fixed size as requested */
+  font-size: 8rem;
   line-height: 0.9;
-  color: #363d49;
+  color: #4e5c74;
   opacity: 1;
   text-rendering: geometricPrecision;
 }
@@ -97,7 +96,6 @@ body {
   font-size: 2rem;
   letter-spacing: 0.12em;
   font-weight: 500;
-  text-transform: lowercase;
   color: var(--color-teal);
   opacity: 1;
   pointer-events: none;
@@ -106,12 +104,16 @@ body {
 
 @media (max-width: 640px) {
   .hero-wordmark {
-    font-size: 5rem;
+    font-size: clamp(2.75rem, 15vw, 4.5rem);
+    text-align: center;
   }
   .sup-branding {
-    top: -1rem;
-    right: -2.2rem;
-    font-size: 0.7rem;
+    position: static;
+    display: block;
+    margin-top: 1.2rem;
+    font-size: 2rem;
+    letter-spacing: 0.18em;
+    text-align: center;
   }
 }
 
@@ -197,7 +199,7 @@ body {
     ),
     radial-gradient(
       circle at var(--x, 50%) var(--y, 50%),
-      rgba(255, 255, 255, 0.18),
+      rgba(255, 255, 255, 0.15),
       rgba(255, 255, 255, 0) 55%
     );
 }
@@ -206,10 +208,144 @@ body {
 .card.spotlight::before {
   background: radial-gradient(
     circle at var(--x, 50%) var(--y, 50%),
-    rgba(148, 163, 184, 0.14),
-    /* center (slate-400) */ rgba(148, 163, 184, 0.045) 35%,
+    rgba(148, 163, 184, 0.05),
+    /* center (slate-400) */ rgba(148, 163, 184, 0.03) 35%,
     rgba(148, 163, 184, 0.02) 55%,
     rgba(148, 163, 184, 0) 72%
   );
   filter: blur(20px) saturate(120%);
+}
+
+/* Follow on X button – light grey spotlight */
+.spotlight-x::before {
+  background: radial-gradient(
+      circle at var(--x, 50%) var(--y, 50%),
+      rgba(203, 213, 225, 0.55),
+      rgba(203, 213, 225, 0.18) 34%,
+      rgba(203, 213, 225, 0.08) 55%,
+      rgba(203, 213, 225, 0) 72%
+    ),
+    radial-gradient(
+      circle at var(--x, 50%) var(--y, 50%),
+      rgba(255, 255, 255, 0.15),
+      rgba(255, 255, 255, 0) 55%
+    );
+  mix-blend-mode: plus-lighter;
+  filter: blur(14px) saturate(150%);
+}
+
+/* Launch App CTA – orange spotlight variant (scoped) */
+.spotlight-launch::before {
+  background: radial-gradient(
+      circle at var(--x, 50%) var(--y, 50%),
+      rgba(175, 93, 0, 0.55),
+      rgba(251, 191, 36, 0.18) 32%,
+      rgba(251, 191, 36, 0.08) 55%,
+      rgba(255, 183, 0, 0) 70%
+    ),
+    radial-gradient(
+      circle at var(--x, 50%) var(--y, 50%),
+      rgba(255, 255, 255, 0.18),
+      rgba(255, 255, 255, 0) 55%
+    );
+  mix-blend-mode: plus-lighter;
+  filter: blur(10px) saturate(160%);
+}
+
+/* ===== Scrollbars (Global) ===== */
+/* Firefox */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.45) transparent;
+}
+
+/* WebKit Browsers */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+  background: transparent;
+}
+::-webkit-scrollbar-track {
+  background: linear-gradient(
+    180deg,
+    rgba(15, 21, 32, 0.85),
+    rgba(15, 21, 32, 0.65)
+  );
+  border-radius: 20px;
+  margin: 2px;
+}
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(
+    200deg,
+    rgba(100, 116, 139, 0.55) 0%,
+    rgba(71, 85, 105, 0.55) 40%,
+    rgba(56, 189, 179, 0.55) 130%
+  );
+  border-radius: 20px;
+  border: 2px solid rgba(15, 21, 32, 0.9);
+  background-clip: padding-box;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.04),
+    0 2px 6px -2px rgba(0, 0, 0, 0.7);
+  transition: background-color 160ms ease, box-shadow 160ms ease;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(
+    200deg,
+    rgba(148, 163, 184, 0.75) 0%,
+    rgba(100, 116, 139, 0.75) 40%,
+    var(--color-teal) 130%
+  );
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06),
+    0 4px 10px -2px rgba(0, 0, 0, 0.8);
+}
+::-webkit-scrollbar-thumb:active {
+  background: linear-gradient(
+    210deg,
+    var(--color-teal) 0%,
+    rgba(34, 211, 238, 0.85) 60%,
+    var(--color-teal) 140%
+  );
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 0 0 4px rgba(0, 161, 148, 0.15);
+}
+
+/* Thin / Embedded Scroll Containers */
+.scrollbar-thin,
+.thin-scroll {
+  scrollbar-width: thin;
+}
+.scrollbar-thin::-webkit-scrollbar,
+.thin-scroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scrollbar-thin::-webkit-scrollbar-track,
+.thin-scroll::-webkit-scrollbar-track {
+  background: rgba(15, 21, 32, 0.4);
+}
+.scrollbar-thin::-webkit-scrollbar-thumb,
+.thin-scroll::-webkit-scrollbar-thumb {
+  background: linear-gradient(
+    180deg,
+    rgba(71, 85, 105, 0.55),
+    rgba(56, 189, 179, 0.55)
+  );
+  border: 2px solid rgba(15, 21, 32, 0.8);
+  border-radius: 12px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb:hover,
+.thin-scroll::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(
+    180deg,
+    rgba(100, 116, 139, 0.75),
+    var(--color-teal)
+  );
+}
+
+/* Hide scrollbars utility (if needed) */
+.scrollbar-none {
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
 }
