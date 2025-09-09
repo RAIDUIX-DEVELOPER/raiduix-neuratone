@@ -1,15 +1,23 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useAppStore } from "@/lib/store";
 export default function HeroButtons() {
+  const router = useRouter();
+  const setRouteLoading = useAppStore((s) => s.setRouteLoading);
   return (
     <div className="mt-10 flex flex-row items-center gap-3 flex-wrap justify-center">
-      <Link
-        href="/app"
+      <button
+        onClick={() => {
+          setRouteLoading(true);
+          // small delay to display animation before navigation
+          setTimeout(() => router.push("/app"), 50);
+        }}
         className="spotlight spotlight-launch focus-ring inline-flex items-center justify-center rounded-md border border-orange-500 bg-[#121826]/70 w-40 h-11 text-sm font-medium text-orange-300 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.55),0_0_0_1px_rgba(251,191,36,0.25)] transition hover:bg-[#1b2331] hover:text-amber-200 hover:border-amber-400/80"
       >
         Launch App
-      </Link>
+      </button>
       <a
         href="https://github.com/RAIDUIX-DEVELOPER/raiduix-neuratone"
         target="_blank"

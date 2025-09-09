@@ -22,6 +22,11 @@ interface AppState {
   resetAllLayers: () => void;
   updatePreset: (id: string, name: string) => void;
   clearLayers: () => void;
+  // UI state (not persisted)
+  routeLoading: boolean;
+  setRouteLoading: (v: boolean) => void;
+  appReady: boolean;
+  setAppReady: (v: boolean) => void;
 }
 
 // Start with no default presets; user-defined only.
@@ -30,6 +35,11 @@ const defaultPresets: Preset[] = [];
 export const useAppStore = create<AppState>()(
   persist<AppState>(
     (set, get) => ({
+      // UI state
+      routeLoading: false,
+      setRouteLoading: (v) => set({ routeLoading: v }),
+      appReady: false,
+      setAppReady: (v) => set({ appReady: v }),
       layers: [
         {
           id: "l1",
@@ -217,6 +227,14 @@ export const useAppStore = create<AppState>()(
         }
       },
     }),
-    { name: "neuratone-store" }
+    {
+      name: "neuratone-store",
+      // Only persist data, not ephemeral UI flags
+      partialize: (state) =>
+        ({
+          layers: state.layers,
+          presets: state.presets,
+        } as unknown as AppState),
+    }
   )
 );

@@ -3,6 +3,7 @@ import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/react";
 import SpotlightProvider from "@/app/ui/SpotlightProvider";
+import RouteLoadingOverlay from "@/app/ui/RouteLoadingOverlay";
 
 const fontSans = Inter({
   variable: "--font-sans",
@@ -40,6 +41,7 @@ export default function RootLayout({
         className={`${fontSans.variable} ${fontMono.variable} antialiased min-h-dvh`}
       >
         <SpotlightProvider />
+        <RouteLoadingOverlay />
         {children}
         <Analytics />
       </body>
