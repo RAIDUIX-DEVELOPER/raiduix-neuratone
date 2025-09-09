@@ -1,5 +1,6 @@
 "use client";
 import React from "react";
+import { Analytics } from "@vercel/analytics/react";
 import { useAppStore } from "@/lib/store";
 import dynamic from "next/dynamic";
 
@@ -24,6 +25,7 @@ export default function AppDashboard() {
         </h1>
       </header>
       <Mixer />
+      <Analytics />
     </div>
   );
 }
