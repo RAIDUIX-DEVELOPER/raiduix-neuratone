@@ -34,11 +34,13 @@ export default function CinematicBackdrop() {
     let w = canvas.clientWidth;
     let h = canvas.clientHeight;
     function resize() {
-      w = canvas.clientWidth;
-      h = canvas.clientHeight;
+      const c = canvasRef.current; // re-read in case unmounted
+      if (!c || !ctx) return;
+      w = c.clientWidth;
+      h = c.clientHeight;
       const dpr = window.devicePixelRatio || 1;
-      canvas.width = w * dpr;
-      canvas.height = h * dpr;
+      c.width = w * dpr;
+      c.height = h * dpr;
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.scale(dpr, dpr);
     }
