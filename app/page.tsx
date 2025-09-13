@@ -1,9 +1,28 @@
 import MinimalCinematicHero from "@/app/ui/MinimalCinematicHero";
 import Reveal from "@/app/ui/Reveal";
+import Script from "next/script";
+import Link from "next/link";
 
 export default function Home() {
   return (
     <main className="min-h-screen bg-[#0A0F1C] text-slate-300">
+      <Script
+        id="softwareapplication-jsonld"
+        type="application/ld+json"
+        strategy="afterInteractive"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "SoftwareApplication",
+            name: "NeuraTone",
+            applicationCategory: "MultimediaApplication",
+            operatingSystem: "Web",
+            offers: { "@type": "Offer", price: 0, priceCurrency: "USD" },
+            url: "/",
+            publisher: { "@type": "Organization", name: "NeuraTone" },
+          }),
+        }}
+      />
       <MinimalCinematicHero />
 
       {/* Content Section */}
@@ -139,6 +158,280 @@ export default function Home() {
             </div>
           </Reveal>
         </div>
+      </section>
+
+      {/* Learn Section (anchors for header) */}
+      <section id="learn" className="px-6 py-20 scroll-mt-28 relative z-20">
+        <div className="max-w-5xl mx-auto">
+          <Reveal>
+            <h2 className="text-center text-2xl font-semibold tracking-tight text-slate-200 mb-12">
+              Learn the Basics
+            </h2>
+          </Reveal>
+          <div className="grid gap-6 md:grid-cols-2 items-stretch">
+            <Reveal className="h-full">
+              <div className="card spotlight rounded-lg p-6 h-full flex flex-col">
+                <h3 className="text-base font-semibold text-teal-300 mb-2">
+                  What are binaural beats?
+                </h3>
+                <p className="text-sm text-slate-300/80 mb-4">
+                  Two slightly different tones presented to each ear create a
+                  perceived beat equal to the difference. Some listeners find
+                  this helps them gently settle into focus, calm, or sleep
+                  routines.
+                </p>
+                <div className="flex gap-2 mt-auto">
+                  <Link
+                    href={{ pathname: "/app", query: { preset: "calm" } }}
+                    prefetch
+                    className="spotlight btn-shape text-[12px] px-3 py-1.5 ring-1 ring-white/5 hover:ring-teal-400/30 text-slate-200/85 hover:text-teal-100 bg-[#0b1220]/70"
+                    data-analytics-event="learn_cta_click"
+                    data-analytics-label="binaural_start_calm"
+                  >
+                    Try Calm preset
+                  </Link>
+                </div>
+              </div>
+            </Reveal>
+            <Reveal delay={0.1} className="h-full">
+              <div className="card spotlight rounded-lg p-6 h-full flex flex-col">
+                <h3 className="text-base font-semibold text-teal-300 mb-2">
+                  What are isochronic tones?
+                </h3>
+                <p className="text-sm text-slate-300/80 mb-4">
+                  A single tone pulsed on and off at a set rate. The crisp
+                  rhythmic gating can feel more pronounced and works over
+                  speakers—headphones still recommended when layering with
+                  binaurals.
+                </p>
+                <div className="flex gap-2 mt-auto">
+                  <Link
+                    href={{ pathname: "/app", query: { preset: "focus" } }}
+                    prefetch
+                    className="spotlight btn-shape text-[12px] px-3 py-1.5 ring-1 ring-white/5 hover:ring-teal-400/30 text-slate-200/85 hover:text-teal-100 bg-[#0b1220]/70"
+                    data-analytics-event="learn_cta_click"
+                    data-analytics-label="isochronic_start_focus"
+                  >
+                    Try Focus preset
+                  </Link>
+                </div>
+              </div>
+            </Reveal>
+            <Reveal delay={0.2} className="h-full">
+              <div className="card spotlight rounded-lg p-6 h-full flex flex-col">
+                <h3 className="text-base font-semibold text-teal-300 mb-2">
+                  Brainwave ranges
+                </h3>
+                <p className="text-sm text-slate-300/80 mb-3">
+                  Common guides: Delta (0.5–4 Hz, deep sleep), Theta (4–8 Hz,
+                  calm/creative), Alpha (8–12 Hz, relaxed focus), Beta (12–20
+                  Hz, active focus). Use as gentle starting points—not strict
+                  rules.
+                </p>
+                <ul className="text-xs space-y-1 text-slate-300/70 list-disc list-inside">
+                  <li>Sleep: Delta emphasis with low volume layers</li>
+                  <li>Calm: Theta with soft ambient bed</li>
+                  <li>Focus: Low Alpha to low Beta with subtle pulses</li>
+                </ul>
+              </div>
+            </Reveal>
+            <Reveal delay={0.3} className="h-full">
+              <div className="card spotlight rounded-lg p-6 h-full flex flex-col">
+                <h3 className="text-base font-semibold text-teal-300 mb-2">
+                  Safety & best practices
+                </h3>
+                <p className="text-sm text-slate-300/80 mb-3">
+                  Keep volumes comfortable, take breaks, and listen for signs of
+                  fatigue. If you have auditory or neurological concerns,
+                  consult a qualified professional before extended use.
+                </p>
+                <Link
+                  href="#faq"
+                  className="spotlight btn-shape inline-block text-[12px] px-3 py-1.5 ring-1 ring-white/5 hover:ring-teal-400/30 text-slate-200/85 hover:text-teal-100 bg-[#0b1220]/70 mt-auto"
+                  data-analytics-event="learn_cta_click"
+                  data-analytics-label="safety_read_faq"
+                >
+                  Read FAQs
+                </Link>
+              </div>
+            </Reveal>
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ Section with JSON-LD */}
+      <section id="faq" className="px-6 py-20 scroll-mt-28 relative z-20">
+        <div className="max-w-5xl mx-auto">
+          <Reveal>
+            <h2 className="text-center text-2xl font-semibold tracking-tight text-slate-200 mb-10">
+              Frequently Asked Questions
+            </h2>
+          </Reveal>
+
+          <div className="grid gap-5 md:grid-cols-2 items-stretch">
+            <Reveal className="h-full">
+              <div className="card spotlight rounded-lg p-5 h-full flex flex-col">
+                <h3 className="text-sm font-semibold text-teal-300 mb-2">
+                  Do I need headphones?
+                </h3>
+                <p className="text-sm text-slate-300/80">
+                  Headphones are recommended for binaural beats (left/right
+                  separation). Isochronic tones can work over speakers, but
+                  layering both is best through headphones.
+                </p>
+              </div>
+            </Reveal>
+            <Reveal delay={0.1} className="h-full">
+              <div className="card spotlight rounded-lg p-5 h-full flex flex-col">
+                <h3 className="text-sm font-semibold text-teal-300 mb-2">
+                  How long should I listen?
+                </h3>
+                <p className="text-sm text-slate-300/80">
+                  Start with 10–15 minutes and extend to 25–40 minutes if it
+                  feels good. Keep intensity modest to avoid fatigue.
+                </p>
+              </div>
+            </Reveal>
+            <Reveal delay={0.2} className="h-full">
+              <div className="card spotlight rounded-lg p-5 h-full flex flex-col">
+                <h3 className="text-sm font-semibold text-teal-300 mb-2">
+                  Is this medical treatment?
+                </h3>
+                <p className="text-sm text-slate-300/80">
+                  No. This is not medical or therapeutic advice. If you have
+                  health concerns, consult a qualified professional.
+                </p>
+              </div>
+            </Reveal>
+            <Reveal delay={0.3} className="h-full">
+              <div className="card spotlight rounded-lg p-5 h-full flex flex-col">
+                <h3 className="text-sm font-semibold text-teal-300 mb-2">
+                  Why layer binaural with isochronic?
+                </h3>
+                <p className="text-sm text-slate-300/80">
+                  The gentle ear‑based beat plus a clear rhythmic pulse can feel
+                  more immersive for some listeners—keep both at comfortable
+                  levels.
+                </p>
+              </div>
+            </Reveal>
+            <Reveal delay={0.4} className="h-full">
+              <div className="card spotlight rounded-lg p-5 h-full flex flex-col">
+                <h3 className="text-sm font-semibold text-teal-300 mb-2">
+                  Will it work for everyone?
+                </h3>
+                <p className="text-sm text-slate-300/80">
+                  Responses vary. Treat it like a light aid for mood and
+                  focus—not a guarantee. Adjust gently and stop if
+                  uncomfortable.
+                </p>
+              </div>
+            </Reveal>
+            <Reveal delay={0.5} className="h-full">
+              <div className="card spotlight rounded-lg p-5 h-full flex flex-col">
+                <h3 className="text-sm font-semibold text-teal-300 mb-2">
+                  What presets should I try first?
+                </h3>
+                <p className="text-sm text-slate-300/80">
+                  Try Calm for a balanced start, Focus for structured work, and
+                  Sleep for wind‑down. Fine‑tune volumes in the mixer.
+                </p>
+                <div className="flex flex-wrap gap-2 mt-auto">
+                  <Link
+                    href={{ pathname: "/app", query: { preset: "calm" } }}
+                    prefetch
+                    className="spotlight btn-shape text-[12px] px-3 py-1.5 ring-1 ring-white/5 hover:ring-teal-400/30 text-slate-200/85 hover:text-teal-100 bg-[#0b1220]/70"
+                    data-analytics-event="faq_cta_click"
+                    data-analytics-label="preset_calm"
+                  >
+                    Calm
+                  </Link>
+                  <Link
+                    href={{ pathname: "/app", query: { preset: "focus" } }}
+                    prefetch
+                    className="spotlight btn-shape text-[12px] px-3 py-1.5 ring-1 ring-white/5 hover:ring-teal-400/30 text-slate-200/85 hover:text-teal-100 bg-[#0b1220]/70"
+                    data-analytics-event="faq_cta_click"
+                    data-analytics-label="preset_focus"
+                  >
+                    Focus
+                  </Link>
+                  <Link
+                    href={{ pathname: "/app", query: { preset: "sleep" } }}
+                    prefetch
+                    className="spotlight btn-shape text-[12px] px-3 py-1.5 ring-1 ring-white/5 hover:ring-teal-400/30 text-slate-200/85 hover:text-teal-100 bg-[#0b1220]/70"
+                    data-analytics-event="faq_cta_click"
+                    data-analytics-label="preset_sleep"
+                  >
+                    Sleep
+                  </Link>
+                </div>
+              </div>
+            </Reveal>
+          </div>
+        </div>
+
+        {/* FAQPage JSON-LD for Home */}
+        <Script
+          id="faqpage-jsonld-home"
+          type="application/ld+json"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "FAQPage",
+              mainEntity: [
+                {
+                  "@type": "Question",
+                  name: "Do I need headphones?",
+                  acceptedAnswer: {
+                    "@type": "Answer",
+                    text: "Headphones are recommended for binaural beats (left/right separation). Isochronic tones can work over speakers, but layering both is best through headphones.",
+                  },
+                },
+                {
+                  "@type": "Question",
+                  name: "How long should I listen?",
+                  acceptedAnswer: {
+                    "@type": "Answer",
+                    text: "Start with 10–15 minutes and extend to 25–40 minutes if it feels good. Keep intensity modest to avoid fatigue.",
+                  },
+                },
+                {
+                  "@type": "Question",
+                  name: "Is this medical treatment?",
+                  acceptedAnswer: {
+                    "@type": "Answer",
+                    text: "No. This is not medical or therapeutic advice. If you have health concerns, consult a qualified professional.",
+                  },
+                },
+                {
+                  "@type": "Question",
+                  name: "Why layer binaural with isochronic?",
+                  acceptedAnswer: {
+                    "@type": "Answer",
+                    text: "The gentle ear-based beat plus a clear rhythmic pulse can feel more immersive for some listeners—keep both at comfortable levels.",
+                  },
+                },
+                {
+                  "@type": "Question",
+                  name: "Will it work for everyone?",
+                  acceptedAnswer: {
+                    "@type": "Answer",
+                    text: "Responses vary. Treat it like a light aid for mood and focus—not a guarantee. Adjust gently and stop if uncomfortable.",
+                  },
+                },
+                {
+                  "@type": "Question",
+                  name: "What presets should I try first?",
+                  acceptedAnswer: {
+                    "@type": "Answer",
+                    text: "Try Calm for a balanced start, Focus for structured work, and Sleep for wind-down. Fine-tune volumes in the mixer.",
+                  },
+                },
+              ],
+            }),
+          }}
+        />
       </section>
     </main>
   );

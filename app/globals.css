@@ -29,6 +29,16 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Smooth scrolling for anchor jumps and back-to-top; disabled for reduced motion */
+html {
+  scroll-behavior: smooth;
+}
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
 /* Custom slider styling for the mixer */
 input[type="range"] {
   -webkit-appearance: none;

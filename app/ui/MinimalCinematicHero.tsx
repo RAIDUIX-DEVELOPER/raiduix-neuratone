@@ -2,16 +2,18 @@
 import { motion } from "framer-motion";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import HeroButtons from "@/app/ui/HeroButtons";
+import HeroVisual from "@/app/ui/HeroVisual";
+import { Play } from "lucide-react";
+import { useAppStore } from "@/lib/store";
+
 export default function MinimalCinematicHero() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const visualRef = useRef<HTMLDivElement | null>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const smoothMousePos = useRef({ x: 0, y: 0 });
 
-  // Visual background tuning (internal only; removed UI controls)
   const prefersReducedMotion = useMemo(
     () =>
       typeof window !== "undefined"
@@ -20,9 +22,9 @@ export default function MinimalCinematicHero() {
         : false,
     []
   );
-  const [starCount, setStarCount] = useState(80);
-  const [connectionDensity, setConnectionDensity] = useState(0.5);
-  const [connectionsEnabled, setConnectionsEnabled] = useState(true);
+  const [starCount, setStarCount] = useState(70);
+  const [connectionDensity] = useState(0.4);
+  const [connectionsEnabled, setConnectionsEnabled] = useState(false);
   const connectionDensityRef = useRef(connectionDensity);
   const connectionsEnabledRef = useRef(connectionsEnabled);
   const reducedAppliedRef = useRef(false);
@@ -49,7 +51,11 @@ export default function MinimalCinematicHero() {
     waveIntensityRef.current = waveIntensity;
   }, [waveIntensity]);
 
-  // Global mouse tracking (normalized -1..1)
+  // Enable connections by default when motion is allowed
+  useEffect(() => {
+    if (!prefersReducedMotion) setConnectionsEnabled(true);
+  }, [prefersReducedMotion]);
+
   useEffect(() => {
     function handleMouseMove(e: MouseEvent) {
       setMousePos({
@@ -61,9 +67,6 @@ export default function MinimalCinematicHero() {
     return () => window.removeEventListener("mousemove", handleMouseMove);
   }, []);
 
-  // Note: GIF tilt animations removed; we still track the mouse for background parallax.
-
-  // Quick-start presets (links to /app?preset=...)
   const quickPresets = useMemo(
     () => [
       { key: "sleep", label: "Sleep" },
@@ -84,8 +87,9 @@ export default function MinimalCinematicHero() {
         return "bg-[#121826]/60 hover:bg-[#1b2331] text-slate-200/90 border-white/10";
     }
   };
-  // Continue session visibility: only when a valid lastPresetId exists in persisted store
+
   const [hasSession, setHasSession] = useState(false);
+  const setRouteLoading = useAppStore((s) => s.setRouteLoading);
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
@@ -105,7 +109,6 @@ export default function MinimalCinematicHero() {
     } catch {}
   }, []);
 
-  // Spotlight coordinate tracker for buttons/links in this component
   const handleSpotlightMouseMove = useCallback(
     (e: ReactMouseEvent<HTMLElement>) => {
       const t = e.currentTarget as HTMLElement;
@@ -150,14 +153,12 @@ export default function MinimalCinematicHero() {
     resize();
     window.addEventListener("resize", resize);
 
-    // Adjust for reduced motion (apply once)
     if (prefersReducedMotion && !reducedAppliedRef.current) {
       reducedAppliedRef.current = true;
       setStarCount((n) => Math.max(40, Math.round(n * 0.6)));
       setConnectionsEnabled(false);
     }
 
-    // Create animated starfield (respect dynamic star count)
     for (let i = 0; i < starCount; i++) {
       stars.push({
         x: Math.random() * w,
@@ -170,7 +171,6 @@ export default function MinimalCinematicHero() {
       });
     }
 
-    // Ephemeral sine-wave connections between nearby stars
     interface Connection {
       a: number;
       b: number;
@@ -183,7 +183,7 @@ export default function MinimalCinematicHero() {
     }
     const connections: Connection[] = [];
     const activePairKeys = new Set<string>();
-    const starInUse = new Set<number>(); // ensure at most one connection per star
+    const starInUse = new Set<number>();
 
     const startTime = performance.now();
 
@@ -191,7 +191,6 @@ export default function MinimalCinematicHero() {
       if (!ctx) return;
       const elapsed = (currentTime - startTime) / 1000;
 
-      // Smooth mouse position for starfield parallax
       smoothMousePos.current.x +=
         (mousePos.x - smoothMousePos.current.x) * 0.12;
       smoothMousePos.current.y +=
@@ -200,29 +199,23 @@ export default function MinimalCinematicHero() {
       ctx.clearRect(0, 0, w, h);
 
       stars.forEach((star) => {
-        // Update position
         star.x += star.vx;
         star.y += star.vy;
-
-        // Wrap around edges
         if (star.x < 0) star.x = w;
         if (star.x > w) star.x = 0;
         if (star.y < 0) star.y = h;
         if (star.y > h) star.y = 0;
 
-        // Twinkling effect
         const twinkle = 0.6 + 0.4 * Math.sin(elapsed * 2 + star.twinkle);
-        // Slightly brighter stars
-        const finalAlpha = star.alpha * twinkle * 0.78;
+        // Increase star glow visibility by ~10%
+        const finalAlpha = star.alpha * twinkle * 0.858; // 0.78 * 1.1
 
-        // Parallax effect based on mouse - stronger effect
-        const parallaxStrength = 1 - star.size / 2; // Smaller stars move more
+        const parallaxStrength = 1 - star.size / 2;
         const parallaxX =
           star.x + smoothMousePos.current.x * (parallaxStrength * 15);
         const parallaxY =
           star.y + smoothMousePos.current.y * (parallaxStrength * 15);
 
-        // Draw star with glow
         const gradient = ctx.createRadialGradient(
           parallaxX,
           parallaxY,
@@ -241,158 +234,88 @@ export default function MinimalCinematicHero() {
         ctx.fill();
       });
 
-      // Randomly spawn new connections between close stars (dynamic density)
-      const maxConnections = Math.round(14 * connectionDensityRef.current);
-      const baseSpawnChance = 0.0035;
-      const spawnChancePerPair = baseSpawnChance * connectionDensityRef.current;
-      const minDist = 42; // avoid very tiny flickers
-      const maxDist = 170; // slightly shorter reach
-      const edgeMargin = 50; // px: exclude stars too close to viewport edge from forming links
+      // Animated connections between nearby stars (sine/triangle/saw/square)
+      if (connectionsEnabledRef.current) {
+        const maxConnections = Math.max(
+          6,
+          Math.round(12 * connectionDensityRef.current)
+        );
+        const spawnChance = 0.0025 * connectionDensityRef.current;
+        const minDist = 48;
+        const maxDist = 180;
+        const edgeMargin = 75; // block connections near viewport edges
 
-      // If no connections active for a while, force-spawn one
-      const idleSeconds = 4.5; // wait longer before forcing a link
-      const anyActive = connections.length > 0;
-      if (
-        connectionsEnabledRef.current &&
-        !anyActive &&
-        Math.random() < 0.02 &&
-        elapsed > idleSeconds
-      ) {
-        // pick nearest reasonable pair
-        let bestI = -1,
-          bestJ = -1,
-          bestD = Infinity;
-        for (let i = 0; i < stars.length; i++) {
-          const si = stars[i];
-          if (
-            si.x < edgeMargin ||
-            si.x > w - edgeMargin ||
-            si.y < edgeMargin ||
-            si.y > h - edgeMargin
-          )
-            continue;
-          if (starInUse.has(i)) continue;
-          for (let j = i + 1; j < stars.length; j++) {
-            const dx = stars[i].x - stars[j].x;
-            const dy = stars[i].y - stars[j].y;
-            const distSq = dx * dx + dy * dy;
-            if (distSq < maxDist * maxDist && distSq > minDist * minDist) {
-              if (distSq < bestD) {
-                bestD = distSq;
-                bestI = i;
-                bestJ = j;
+        // Try to spawn a few connections per frame (bounded by maxConnections)
+        if (connections.length < maxConnections) {
+          outer: for (let i = 0; i < stars.length; i++) {
+            if (connections.length >= maxConnections) break;
+            for (let j = i + 1; j < stars.length; j++) {
+              const a = stars[i];
+              const b = stars[j];
+              // Skip if either star is within the edge exclusion zone
+              if (
+                a.x < edgeMargin ||
+                a.x > w - edgeMargin ||
+                a.y < edgeMargin ||
+                a.y > h - edgeMargin ||
+                b.x < edgeMargin ||
+                b.x > w - edgeMargin ||
+                b.y < edgeMargin ||
+                b.y > h - edgeMargin
+              ) {
+                continue;
               }
-            }
-          }
-        }
-        if (bestI !== -1) {
-          const key = bestI + "-" + bestJ;
-          if (
-            !activePairKeys.has(key) &&
-            !starInUse.has(bestI) &&
-            !starInUse.has(bestJ)
-          ) {
-            const dist = Math.sqrt(bestD);
-            // Waveform selection from enabled set
-            let enabledList = Object.entries(waveformsRef.current)
-              .filter(([, v]) => v)
-              .map(([k]) => k as WaveKind);
-            if (!enabledList.length) enabledList = ["sine"];
-            const wave =
-              enabledList[Math.floor(Math.random() * enabledList.length)];
-            connections.push({
-              a: bestI,
-              b: bestJ,
-              start: elapsed,
-              duration: 2.8 + Math.random() * 2.4,
-              amp:
-                (2 + Math.min(6, dist / 28) * (0.3 + Math.random() * 0.4)) *
-                waveIntensityRef.current,
-              freq: 1.4 + Math.random() * 1.6,
-              phase: Math.random() * Math.PI * 2,
-              wave,
-            });
-            activePairKeys.add(key);
-            starInUse.add(bestI);
-            starInUse.add(bestJ);
-          }
-        }
-      }
-      if (
-        connectionsEnabledRef.current &&
-        connections.length < maxConnections
-      ) {
-        for (let i = 0; i < stars.length; i++) {
-          const si = stars[i];
-          if (
-            si.x < edgeMargin ||
-            si.x > w - edgeMargin ||
-            si.y < edgeMargin ||
-            si.y > h - edgeMargin
-          )
-            continue;
-          if (starInUse.has(i)) continue;
-          for (let j = i + 1; j < stars.length; j++) {
-            const dx = stars[i].x - stars[j].x;
-            const dy = stars[i].y - stars[j].y;
-            const sj = stars[j];
-            if (
-              sj.x < edgeMargin ||
-              sj.x > w - edgeMargin ||
-              sj.y < edgeMargin ||
-              sj.y > h - edgeMargin
-            )
-              continue;
-            if (starInUse.has(j)) continue;
-            const distSq = dx * dx + dy * dy;
-            if (distSq < maxDist * maxDist && distSq > minDist * minDist) {
-              if (Math.random() < spawnChancePerPair) {
-                const key = i + "-" + j;
-                if (!activePairKeys.has(key)) {
-                  const dist = Math.sqrt(distSq);
-                  let enabledList = Object.entries(waveformsRef.current)
+              const dx = a.x - b.x;
+              const dy = a.y - b.y;
+              const d2 = dx * dx + dy * dy;
+              if (d2 < maxDist * maxDist && d2 > minDist * minDist) {
+                if (Math.random() < spawnChance) {
+                  const key = i + "-" + j;
+                  if (
+                    activePairKeys.has(key) ||
+                    starInUse.has(i) ||
+                    starInUse.has(j)
+                  )
+                    continue;
+                  // Choose waveform
+                  let enabled = Object.entries(waveformsRef.current)
                     .filter(([, v]) => v)
                     .map(([k]) => k as WaveKind);
-                  if (!enabledList.length) enabledList = ["sine"];
+                  if (!enabled.length) enabled = ["sine"];
                   const wave =
-                    enabledList[Math.floor(Math.random() * enabledList.length)];
+                    enabled[Math.floor(Math.random() * enabled.length)];
+                  const dist = Math.sqrt(d2);
                   connections.push({
                     a: i,
                     b: j,
                     start: elapsed,
-                    duration: 2.4 + Math.random() * 2.2, // shorter life
+                    duration: 2.4 + Math.random() * 2.6,
                     amp:
-                      (2 +
-                        Math.min(6, dist / 26) * (0.35 + Math.random() * 0.4)) *
+                      (2 + Math.min(6, dist / 30)) *
+                      (0.35 + Math.random() * 0.4) *
                       waveIntensityRef.current,
-                    freq: 1.3 + Math.random() * 1.8,
+                    freq: 1.2 + Math.random() * 1.6,
                     phase: Math.random() * Math.PI * 2,
                     wave,
                   });
                   activePairKeys.add(key);
                   starInUse.add(i);
                   starInUse.add(j);
-                  if (connections.length >= maxConnections) break;
                 }
               }
             }
           }
-          if (connections.length >= maxConnections) break;
         }
-      }
 
-      // Draw & retire connections
-      if (connectionsEnabledRef.current) {
+        // Draw and retire connections
         ctx.save();
         ctx.lineCap = "round";
         ctx.lineJoin = "round";
         ctx.globalCompositeOperation = "lighter";
-        const now = elapsed;
         for (let k = connections.length - 1; k >= 0; k--) {
           const c = connections[k];
-          const life = now - c.start;
+          const life = elapsed - c.start;
           if (life > c.duration) {
-            // remove
             const key = c.a + "-" + c.b;
             activePairKeys.delete(key);
             starInUse.delete(c.a);
@@ -400,26 +323,26 @@ export default function MinimalCinematicHero() {
             connections.splice(k, 1);
             continue;
           }
-          const tNorm = life / c.duration;
-          // Ease in/out alpha envelope
-          let envelope = 1;
-          if (tNorm < 0.25) envelope = tNorm / 0.25;
-          else if (tNorm > 0.75) envelope = (1 - tNorm) / 0.25;
-          envelope = Math.max(0, Math.min(1, envelope));
+          const tNorm = Math.max(0, Math.min(1, life / c.duration));
+          // ease in/out envelope
+          const env =
+            tNorm < 0.25 ? tNorm / 0.25 : tNorm > 0.75 ? (1 - tNorm) / 0.25 : 1;
 
-          const aStar = stars[c.a];
-          const bStar = stars[c.b];
-          if (!aStar || !bStar) continue;
-          // If either star drifted near edge, retire early
+          const a = stars[c.a];
+          const b = stars[c.b];
+          if (!a || !b) continue;
+
+          // If either star drifted near the edge, retire this connection early
+          const edgeMargin = 75;
           if (
-            aStar.x < edgeMargin ||
-            aStar.x > w - edgeMargin ||
-            aStar.y < edgeMargin ||
-            aStar.y > h - edgeMargin ||
-            bStar.x < edgeMargin ||
-            bStar.x > w - edgeMargin ||
-            bStar.y < edgeMargin ||
-            bStar.y > h - edgeMargin
+            a.x < edgeMargin ||
+            a.x > w - edgeMargin ||
+            a.y < edgeMargin ||
+            a.y > h - edgeMargin ||
+            b.x < edgeMargin ||
+            b.x > w - edgeMargin ||
+            b.y < edgeMargin ||
+            b.y > h - edgeMargin
           ) {
             const key = c.a + "-" + c.b;
             activePairKeys.delete(key);
@@ -428,72 +351,64 @@ export default function MinimalCinematicHero() {
             connections.splice(k, 1);
             continue;
           }
-          // Current (possibly parallax-shifted) positions (reuse smoothing like stars)
-          const parallaxStrengthA = 1 - aStar.size / 2;
-          const parallaxStrengthB = 1 - bStar.size / 2;
-          const ax =
-            aStar.x + smoothMousePos.current.x * (parallaxStrengthA * 15);
-          const ay =
-            aStar.y + smoothMousePos.current.y * (parallaxStrengthA * 15);
-          const bx =
-            bStar.x + smoothMousePos.current.x * (parallaxStrengthB * 15);
-          const by =
-            bStar.y + smoothMousePos.current.y * (parallaxStrengthB * 15);
+
+          // Parallax-adjusted endpoints
+          const strA = 1 - a.size / 2;
+          const strB = 1 - b.size / 2;
+          const ax = a.x + smoothMousePos.current.x * (strA * 15);
+          const ay = a.y + smoothMousePos.current.y * (strA * 15);
+          const bx = b.x + smoothMousePos.current.x * (strB * 15);
+          const by = b.y + smoothMousePos.current.y * (strB * 15);
 
           const dx = bx - ax;
           const dy = by - ay;
-          const dist = Math.sqrt(dx * dx + dy * dy);
+          const dist = Math.hypot(dx, dy);
           if (dist < 1) continue;
           const ux = dx / dist;
           const uy = dy / dist;
-          const px = -uy; // perpendicular unit
+          const px = -uy;
           const py = ux;
 
-          const segments = Math.min(28, Math.max(10, Math.round(dist / 12)));
-          const waveAmp = c.amp * envelope;
+          const segs = Math.min(28, Math.max(12, Math.round(dist / 14)));
           ctx.beginPath();
-          for (let s = 0; s <= segments; s++) {
-            const t = s / segments;
+          for (let s = 0; s <= segs; s++) {
+            const t = s / segs;
             const baseX = ax + ux * dist * t;
             const baseY = ay + uy * dist * t;
-            // Taper amplitude toward ends with sin(pi*t)
             const taper = Math.sin(Math.PI * t);
-            const arg = t * Math.PI * c.freq + now * 1.6 + c.phase;
+            const arg = t * Math.PI * c.freq + elapsed * 1.6 + c.phase;
             let waveVal: number;
             switch (c.wave) {
               case "saw": {
                 const twoPi = Math.PI * 2;
-                waveVal = ((arg % twoPi) / twoPi) * 2 - 1; // -1..1 ramp
+                waveVal = ((arg % twoPi) / twoPi) * 2 - 1;
                 break;
               }
-              case "square": {
+              case "square":
                 waveVal = Math.sin(arg) >= 0 ? 1 : -1;
                 break;
-              }
               case "triangle": {
                 const twoPi = Math.PI * 2;
-                const norm = (arg % twoPi) / twoPi; // 0..1
+                const norm = (arg % twoPi) / twoPi;
                 waveVal =
                   1 - 4 * Math.abs(Math.round(norm - 0.25) - (norm - 0.25));
                 break;
               }
               default:
-                waveVal = Math.sin(arg); // sine
+                waveVal = Math.sin(arg);
             }
-            if (c.wave === "square" || c.wave === "saw") waveVal *= 0.7; // soften harsh waves
-            const offset = waveVal * waveAmp * taper;
+            if (c.wave === "square" || c.wave === "saw") waveVal *= 0.7; // soften
+            const offset = waveVal * c.amp * env * taper;
             const x = baseX + px * offset;
             const y = baseY + py * offset;
             if (s === 0) ctx.moveTo(x, y);
             else ctx.lineTo(x, y);
           }
-          // Slightly stronger link visibility
+          // Slightly stronger link visibility (~10%)
           const alpha =
-            0.18 *
-            envelope *
-            Math.min(1.15, 0.6 + waveIntensityRef.current * 0.55);
+            0.198 * env * Math.min(1.15, 0.6 + waveIntensityRef.current * 0.55);
           ctx.strokeStyle = `rgba(80, 230, 220, ${alpha})`;
-          ctx.lineWidth = 0.55 + 0.35 * envelope; // thinner
+          ctx.lineWidth = 0.6 + 0.4 * env;
           ctx.stroke();
         }
         ctx.restore();
@@ -505,249 +420,130 @@ export default function MinimalCinematicHero() {
 
     return () => {
       window.removeEventListener("resize", resize);
-      if (animationId) {
-        cancelAnimationFrame(animationId);
-      }
+      if (animationId) cancelAnimationFrame(animationId);
     };
   }, [starCount, prefersReducedMotion]);
 
+  // Intro animation variants for quick preset chips
+  const chipsContainerVariants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: { staggerChildren: 0.07, delayChildren: 1.1 },
+    },
+  } as const;
+  const chipItemVariants = {
+    hidden: { opacity: 0, y: 6 },
+    show: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: 0.5, ease: [0.2, 0.8, 0.2, 1] },
+    },
+  } as const;
+
   return (
     <>
-      <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-br from-[#0A0F1C] via-[#0D1420] to-[#111827]">
-        {/* Subtle starfield background */}
+      <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-br from-[#0A0F1C] via-[#0D1420] to-[#111827] pt-28 md:pt-32 pb-28 md:pb-40">
         <canvas
           ref={canvasRef}
-          className="absolute inset-0 opacity-40"
+          className="absolute inset-0 opacity-30"
           style={{ width: "100%", height: "100%" }}
         />
+        <div className="absolute inset-0 bg-[radial-gradient(60%_40%_at_50%_0%,rgba(56,189,179,0.08),rgba(0,0,0,0))]" />
+        <div className="relative z-10 px-6 w-full max-w-5xl">
+          <div className="flex flex-col items-center text-center gap-6">
+            <motion.h1
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 1.2, delay: 0.4 }}
+              className="text-3xl md:text-5xl lg:text-6xl font-semibold tracking-tight text-slate-200/95 max-w-4xl mx-auto leading-tight"
+            >
+              Create calming, layered binaural & isochronic soundscapes in
+              seconds. Free. No sign‑up.
+            </motion.h1>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 1.2, delay: 0.8 }}
+            >
+              <HeroButtons showContinue={hasSession} />
+            </motion.div>
+            <motion.p
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 0.7, y: 0 }}
+              transition={{ duration: 1, delay: 1.0 }}
+              className="text-[12px] text-slate-300/70"
+            >
+              Open‑source · No sign‑up · 100% Free
+            </motion.p>
 
-        {/* Ambient glow */}
-        <div className="absolute inset-0 bg-gradient-to-t from-transparent via-[rgba(56,189,179,0.05)] to-transparent" />
-        {/* Content */}
-        <div className="relative z-10 px-6 w-full max-w-6xl">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-10 items-center">
-            {/* Left: Title + copy + CTAs */}
-            <div className="text-center md:text-left">
-              {/* Top: Trust strip + Social buttons */}
-              <div className="mb-6 flex flex-col gap-3">
-                {/* Trust strip */}
-                <div>
-                  <div className="btn-shape inline-flex items-center gap-4 px-3 py-2 bg-[#0f172a]/50 text-[11px] text-slate-300/80">
-                    <div className="flex items-center gap-1.5">
-                      {/* Open-source icon */}
-                      <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                        className="opacity-80"
-                      >
-                        <path d="M12 3a9 9 0 100 18 9 9 0 000-18z" />
-                        <path d="M12 3v9l6 6" />
-                      </svg>
-                      <span>Open‑source</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      {/* No sign-up icon */}
-                      <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                        className="opacity-80"
-                      >
-                        <path d="M12 12a5 5 0 100-10 5 5 0 000 10z" />
-                        <path d="M3 21a9 9 0 0118 0" />
-                        <path d="M4 4l16 16" />
-                      </svg>
-                      <span>No sign‑up</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      {/* Free icon */}
-                      <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                        className="opacity-80"
-                      >
-                        <path d="M20 7l-8 10-4-4" />
-                        <circle cx="12" cy="12" r="9" />
-                      </svg>
-                      <span>100% Free</span>
-                    </div>
-                  </div>
-                </div>
+            {/* Helper line for presets */}
+            <motion.p
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 0.7, y: 0 }}
+              transition={{ duration: 0.8, delay: 1.0 }}
+              className="text-[12px] text-slate-300/70 mt-1"
+            >
+              Try one of our presets to get started
+            </motion.p>
 
-                {/* Social buttons */}
-                <div className="flex flex-row items-center gap-3 flex-wrap justify-start">
-                  <a
-                    href="https://github.com/RAIDUIX-DEVELOPER/raiduix-neuratone"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onMouseMove={handleSpotlightMouseMove}
-                    className="spotlight btn-accent btn-shape inline-flex items-center justify-center gap-2 cursor-pointer w-40 h-11 text-[11px] font-medium tracking-wide text-teal-300/80 ring-1 ring-white/5 hover:text-teal-200 hover:ring-teal-400/30 transition-colors backdrop-blur-[15px] bg-[#121826]/50"
-                  >
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.6"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden="true"
-                    >
-                      <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22" />
-                    </svg>
-                    <span>GitHub</span>
-                  </a>
-                  <a
-                    href="https://x.com/neuratone"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onMouseMove={handleSpotlightMouseMove}
-                    className="spotlight spotlight-x btn-shape inline-flex items-center justify-center gap-2 cursor-pointer w-40 h-11 text-[11px] font-medium tracking-wide text-slate-300/70 ring-1 ring-white/5 hover:text-white hover:ring-slate-400/30 transition-colors backdrop-blur-[15px] bg-[#121826]/50"
-                  >
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.6"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden="true"
-                    >
-                      <path d="M4 4l8 10.5L19 4l1 1.2L13.5 16H13L5 5.2 4 4z" />
-                      <path d="M10 16l-3.5 4H4l4.5-6M14 16l3.5 4H20l-4.5-6" />
-                    </svg>
-                    <span>Follow on X</span>
-                  </a>
-                </div>
-              </div>
-
-              {/* Main title with light parallax */}
-              <motion.h1
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 1.5, ease: [0.19, 0.82, 0.25, 1] }}
-                style={{
-                  transform: `perspective(1000px) rotateY(${
-                    mousePos.x * 1.2
-                  }deg) rotateX(${mousePos.y * -1.2}deg)`,
-                }}
-                className="text-6xl md:text-7xl lg:text-8xl font-bold mb-5 bg-gradient-to-br from-slate-200 via-teal-200 to-slate-400 bg-clip-text text-transparent leading-tight"
-              >
-                NeuraTone
-              </motion.h1>
-
-              {/* Description */}
-              <motion.p
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 0.8, y: 0 }}
-                transition={{ duration: 1.2, delay: 0.8 }}
-                className="text-base md:text-lg text-slate-300/80 mb-8 max-w-xl md:mx-0 mx-auto leading-relaxed"
-              >
-                Create calming, layered binaural & isochronic soundscapes in
-                seconds. Free. No sign-up.
-              </motion.p>
-
-              {/* Action buttons */}
+            {/* Quick-start preset chips with intro animation */}
+            <div className="mt-0" role="group" aria-label="Quick start presets">
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 1.2, delay: 1.0 }}
+                className="flex flex-wrap gap-3 md:gap-4 justify-center"
+                variants={chipsContainerVariants}
+                initial="hidden"
+                animate="show"
               >
-                <HeroButtons showContinue={hasSession} />
-              </motion.div>
-
-              {/* Quick-start preset chips */}
-              <div
-                className="mt-6"
-                role="group"
-                aria-label="Quick start presets"
-              >
-                <div className="flex flex-wrap gap-2 justify-start">
-                  {quickPresets.map((p) => (
+                {quickPresets.map((p) => (
+                  <motion.div key={p.key} variants={chipItemVariants}>
                     <Link
-                      key={p.key}
                       href={{ pathname: "/app", query: { preset: p.key } }}
                       prefetch
+                      data-analytics-event="preset_chip_click"
+                      data-analytics-label={p.key}
                       onMouseMove={handleSpotlightMouseMove}
-                      className={`spotlight btn-shape cursor-pointer px-3 py-1.5 text-[11px] tracking-wide transition-colors border ${chipClasses(
+                      onClick={() => {
+                        try {
+                          setRouteLoading(true);
+                        } catch {}
+                      }}
+                      className={`group spotlight btn-shape inline-flex items-center gap-1.5 cursor-pointer px-3 py-1.5 text-[11px] tracking-wide transition-colors border opacity-90 ${chipClasses(
                         p.key
                       )}`}
                       aria-label={`Start ${p.label} preset`}
                     >
-                      {p.label}
+                      <Play
+                        aria-hidden="true"
+                        className="h-3.5 w-3.5 opacity-90 group-hover:opacity-100 transition-opacity duration-200"
+                      />
+                      <span>{p.label}</span>
                     </Link>
-                  ))}
-                </div>
-              </div>
-
-              {/* (Trust strip moved to the top block) */}
-            </div>
-
-            {/* Right: Product visual (larger, angled, overlaps behind text) */}
-            <div className="relative">
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{
-                  duration: 1.2,
-                  delay: 0.6,
-                  ease: [0.19, 0.82, 0.25, 1],
-                }}
-                className="relative md:-mr-16 lg:-mr-24"
-              >
-                <div
-                  ref={visualRef}
-                  className="relative mx-auto w-[95%] md:w-[115%] lg:w-[125%] -z-10"
-                  style={{
-                    transformOrigin: "center left",
-                    willChange: "transform",
-                    transform: "translateX(-150px)",
-                  }}
-                >
-                  <Image
-                    src="/intro-visual.gif"
-                    alt="Preview of the NeuraTone mixer interface"
-                    width={1600}
-                    height={900}
-                    unoptimized
-                    priority
-                    className="w-full h-auto rounded-xl border border-white/10 shadow-[0_30px_90px_-20px_rgba(0,0,0,0.65)]"
-                  />
-                  {/* Soft glow */}
-                  <div
-                    className="pointer-events-none absolute inset-0 rounded-xl"
-                    style={{
-                      boxShadow:
-                        "inset 0 1px 0 rgba(255,255,255,0.05), 0 0 100px rgba(56,189,179,0.10)",
-                    }}
-                  />
-                </div>
+                  </motion.div>
+                ))}
               </motion.div>
             </div>
-          </div>
 
-          {/* Scroll indicator (absolute at bottom) */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 0.55 }}
-            transition={{ duration: 1, delay: 2 }}
-            className="pointer-events-none"
-          />
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 1.2, delay: 0.6 }}
+              className="relative w-full max-w-5xl mx-auto pt-4"
+            >
+              <div ref={visualRef} className="relative mx-auto w-full z-0">
+                <HeroVisual className="w-full h-auto rounded-xl border border-white/10 shadow-[0_30px_90px_-20px_rgba(0,0,0,0.65)]" />
+                <div
+                  className="pointer-events-none absolute inset-0 rounded-xl"
+                  style={{
+                    boxShadow:
+                      "inset 0 1px 0 rgba(255,255,255,0.05), 0 0 120px rgba(56,189,179,0.12)",
+                  }}
+                />
+              </div>
+            </motion.div>
+          </div>
         </div>
+
         <motion.div
           aria-hidden="true"
           initial={{ y: 4 }}
