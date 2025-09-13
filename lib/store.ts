@@ -12,6 +12,7 @@ export interface Preset {
 interface AppState {
   layers: SoundLayer[];
   presets: Preset[];
+  lastPresetId: string | null;
   addLayer: (l?: Partial<Omit<SoundLayer, "id" | "isPlaying">>) => void;
   updateLayer: (id: string, patch: Partial<SoundLayer>) => void;
   removeLayer: (id: string) => void;
@@ -22,6 +23,7 @@ interface AppState {
   resetAllLayers: () => void;
   updatePreset: (id: string, name: string) => void;
   clearLayers: () => void;
+  setLastPresetId: (id: string | null) => void;
   // UI state (not persisted)
   routeLoading: boolean;
   setRouteLoading: (v: boolean) => void;
@@ -29,8 +31,131 @@ interface AppState {
   setAppReady: (v: boolean) => void;
 }
 
-// Start with no default presets; user-defined only.
-const defaultPresets: Preset[] = [];
+// Seeded default presets available on first run.
+// Frequency choices are informed by common practice and popular summaries:
+// - Delta (1–4 Hz) often used for deep sleep/relaxation
+// - Theta (4–8 Hz) and Alpha (8–13 Hz) linked with calm/relaxation
+// - Beta (14–30 Hz) linked with focus/alertness; 40 Hz gamma sometimes explored
+// Sources (non-medical, informational):
+// - Healthline (2024-08-28): https://www.healthline.com/health/binaural-beats
+// - Wikipedia (accessed 2025-09): https://en.wikipedia.org/wiki/Binaural_beats
+// Note: Research is mixed; these presets are gentle defaults, not medical advice.
+const defaultPresets: Preset[] = [
+  {
+    id: "preset-sleep",
+    name: "Sleep",
+    layers: [
+      // Delta ~3 Hz binaural across a couple carriers
+      {
+        id: "sleep-b1",
+        type: "binaural",
+        baseFreq: 200,
+        beatOffset: 3,
+        volume: 0.42,
+        pan: 0,
+        wave: "sine",
+        isPlaying: false,
+      },
+      {
+        id: "sleep-b2",
+        type: "binaural",
+        baseFreq: 140,
+        beatOffset: 3,
+        volume: 0.34,
+        pan: 0,
+        wave: "sine",
+        isPlaying: false,
+      },
+      // Gentle isochronic pulse at ~3 Hz, low level
+      {
+        id: "sleep-i1",
+        type: "isochronic",
+        baseFreq: 110,
+        pulseFreq: 3,
+        volume: 0.18,
+        pan: 0,
+        wave: "sine",
+        isPlaying: false,
+      },
+    ],
+  },
+  {
+    id: "preset-calm",
+    name: "Calm",
+    layers: [
+      // Theta ~6 Hz binaural
+      {
+        id: "calm-b1",
+        type: "binaural",
+        baseFreq: 200,
+        beatOffset: 6,
+        volume: 0.4,
+        pan: 0,
+        wave: "sine",
+        isPlaying: false,
+      },
+      {
+        id: "calm-b2",
+        type: "binaural",
+        baseFreq: 220,
+        beatOffset: 6,
+        volume: 0.3,
+        pan: 0,
+        wave: "sine",
+        isPlaying: false,
+      },
+      // Optional isochronic support at 6 Hz
+      {
+        id: "calm-i1",
+        type: "isochronic",
+        baseFreq: 130,
+        pulseFreq: 6,
+        volume: 0.16,
+        pan: 0,
+        wave: "sine",
+        isPlaying: false,
+      },
+    ],
+  },
+  {
+    id: "preset-focus",
+    name: "Focus",
+    layers: [
+      // Beta ~14 Hz binaural
+      {
+        id: "focus-b1",
+        type: "binaural",
+        baseFreq: 200,
+        beatOffset: 14,
+        volume: 0.42,
+        pan: 0,
+        wave: "sine",
+        isPlaying: false,
+      },
+      {
+        id: "focus-b2",
+        type: "binaural",
+        baseFreq: 240,
+        beatOffset: 14,
+        volume: 0.3,
+        pan: 0,
+        wave: "sine",
+        isPlaying: false,
+      },
+      // Low-level isochronic pulse in low beta range ~18 Hz
+      {
+        id: "focus-i1",
+        type: "isochronic",
+        baseFreq: 180,
+        pulseFreq: 18,
+        volume: 0.14,
+        pan: 0,
+        wave: "sine",
+        isPlaying: false,
+      },
+    ],
+  },
+];
 
 export const useAppStore = create<AppState>()(
   persist<AppState>(
@@ -40,6 +165,8 @@ export const useAppStore = create<AppState>()(
       setRouteLoading: (v) => set({ routeLoading: v }),
       appReady: false,
       setAppReady: (v) => set({ appReady: v }),
+      lastPresetId: null,
+      setLastPresetId: (id) => set({ lastPresetId: id }),
       layers: [
         {
           id: "l1",
@@ -165,6 +292,7 @@ export const useAppStore = create<AppState>()(
         set((state) => ({
           ...state,
           presets: state.presets.filter((p) => p.id !== id),
+          lastPresetId: state.lastPresetId === id ? null : state.lastPresetId,
         })),
       updatePreset: (id, name) =>
         set((state) => {
@@ -186,6 +314,7 @@ export const useAppStore = create<AppState>()(
           layers: [],
         })),
       savePreset: (name) => {
+        // If no presets were ever saved (fresh store), keep seeded defaults and add/overwrite by name
         const existing = get().presets.find(
           (p) => p.name.toLowerCase() === name.toLowerCase()
         );
@@ -200,6 +329,7 @@ export const useAppStore = create<AppState>()(
             presets: state.presets.map((p) =>
               p.id === existing.id ? updated : p
             ),
+            lastPresetId: existing.id,
           }));
         } else {
           const newPreset: Preset = {
@@ -210,10 +340,15 @@ export const useAppStore = create<AppState>()(
           set((state) => ({
             ...state,
             presets: [...state.presets, newPreset],
+            lastPresetId: newPreset.id,
           }));
         }
       },
       loadPreset: (id) => {
+        // On first run make sure seeded defaults are present
+        if (get().presets.length === 0) {
+          set((state) => ({ ...state, presets: defaultPresets }));
+        }
         const p = get().presets.find((p) => p.id === id);
         if (p) {
           set((state) => ({
@@ -223,6 +358,7 @@ export const useAppStore = create<AppState>()(
               id: crypto.randomUUID(),
               isPlaying: false,
             })),
+            lastPresetId: id,
           }));
         }
       },
@@ -234,7 +370,17 @@ export const useAppStore = create<AppState>()(
         ({
           layers: state.layers,
           presets: state.presets,
+          lastPresetId: state.lastPresetId,
         } as unknown as AppState),
     }
   )
 );
+
+// Convenience helpers (non-stateful) for preset lookup
+export function getPresetByNameOrId(key: string): Preset | undefined {
+  const st = useAppStore.getState();
+  const byId = st.presets.find((p) => p.id === key);
+  if (byId) return byId;
+  const decoded = key.toLowerCase();
+  return st.presets.find((p) => p.name.toLowerCase() === decoded);
+}

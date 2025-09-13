@@ -1,27 +1,37 @@
 "use client";
 import { motion } from "framer-motion";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { MouseEvent as ReactMouseEvent } from "react";
+import Image from "next/image";
+import Link from "next/link";
 import HeroButtons from "@/app/ui/HeroButtons";
-
 export default function MinimalCinematicHero() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const visualRef = useRef<HTMLDivElement | null>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const smoothMousePos = useRef({ x: 0, y: 0 });
 
-  // User-adjustable particle controls
+  // Visual background tuning (internal only; removed UI controls)
+  const prefersReducedMotion = useMemo(
+    () =>
+      typeof window !== "undefined"
+        ? window.matchMedia &&
+          window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        : false,
+    []
+  );
   const [starCount, setStarCount] = useState(80);
-  const [connectionDensity, setConnectionDensity] = useState(0.5); // multiplier (default lowered)
+  const [connectionDensity, setConnectionDensity] = useState(0.5);
   const [connectionsEnabled, setConnectionsEnabled] = useState(true);
   const connectionDensityRef = useRef(connectionDensity);
   const connectionsEnabledRef = useRef(connectionsEnabled);
+  const reducedAppliedRef = useRef(false);
   useEffect(() => {
     connectionDensityRef.current = connectionDensity;
   }, [connectionDensity]);
   useEffect(() => {
     connectionsEnabledRef.current = connectionsEnabled;
   }, [connectionsEnabled]);
-  const [controlsOpen, setControlsOpen] = useState(false);
-  // Waveform + intensity controls
   type WaveKind = "sine" | "triangle" | "saw" | "square";
   const [waveforms, setWaveforms] = useState<Record<WaveKind, boolean>>({
     sine: true,
@@ -29,7 +39,7 @@ export default function MinimalCinematicHero() {
     saw: false,
     square: false,
   });
-  const [waveIntensity, setWaveIntensity] = useState(1); // scales amplitude
+  const [waveIntensity, setWaveIntensity] = useState(1);
   const waveformsRef = useRef(waveforms);
   const waveIntensityRef = useRef(waveIntensity);
   useEffect(() => {
@@ -38,6 +48,75 @@ export default function MinimalCinematicHero() {
   useEffect(() => {
     waveIntensityRef.current = waveIntensity;
   }, [waveIntensity]);
+
+  // Global mouse tracking (normalized -1..1)
+  useEffect(() => {
+    function handleMouseMove(e: MouseEvent) {
+      setMousePos({
+        x: (e.clientX / window.innerWidth - 0.5) * 2,
+        y: (e.clientY / window.innerHeight - 0.5) * 2,
+      });
+    }
+    window.addEventListener("mousemove", handleMouseMove);
+    return () => window.removeEventListener("mousemove", handleMouseMove);
+  }, []);
+
+  // Note: GIF tilt animations removed; we still track the mouse for background parallax.
+
+  // Quick-start presets (links to /app?preset=...)
+  const quickPresets = useMemo(
+    () => [
+      { key: "sleep", label: "Sleep" },
+      { key: "calm", label: "Calm" },
+      { key: "focus", label: "Focus" },
+    ],
+    []
+  );
+  const chipClasses = (key: string) => {
+    switch (key) {
+      case "sleep":
+        return "bg-violet-500/15 hover:bg-violet-500/25 text-violet-200/90 hover:text-violet-100 border-violet-400/25";
+      case "calm":
+        return "bg-teal-500/15 hover:bg-teal-500/25 text-teal-200/90 hover:text-teal-100 border-teal-400/25";
+      case "focus":
+        return "bg-sky-500/15 hover:bg-sky-500/25 text-sky-200/90 hover:text-sky-100 border-sky-400/25";
+      default:
+        return "bg-[#121826]/60 hover:bg-[#1b2331] text-slate-200/90 border-white/10";
+    }
+  };
+  // Continue session visibility: only when a valid lastPresetId exists in persisted store
+  const [hasSession, setHasSession] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.localStorage.getItem("neuratone-store");
+      if (!raw) return;
+      let parsed: any;
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        return;
+      }
+      const state = parsed?.state ?? parsed;
+      const lastId: string | null | undefined = state?.lastPresetId;
+      const presets: any[] = Array.isArray(state?.presets) ? state.presets : [];
+      const hasValid = !!lastId && presets.some((p) => p?.id === lastId);
+      setHasSession(hasValid);
+    } catch {}
+  }, []);
+
+  // Spotlight coordinate tracker for buttons/links in this component
+  const handleSpotlightMouseMove = useCallback(
+    (e: ReactMouseEvent<HTMLElement>) => {
+      const t = e.currentTarget as HTMLElement;
+      const rect = t.getBoundingClientRect();
+      const x = ((e.clientX - rect.left) / rect.width) * 100;
+      const y = ((e.clientY - rect.top) / rect.height) * 100;
+      t.style.setProperty("--x", `${x}%`);
+      t.style.setProperty("--y", `${y}%`);
+    },
+    []
+  );
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -70,6 +149,13 @@ export default function MinimalCinematicHero() {
     }
     resize();
     window.addEventListener("resize", resize);
+
+    // Adjust for reduced motion (apply once)
+    if (prefersReducedMotion && !reducedAppliedRef.current) {
+      reducedAppliedRef.current = true;
+      setStarCount((n) => Math.max(40, Math.round(n * 0.6)));
+      setConnectionsEnabled(false);
+    }
 
     // Create animated starfield (respect dynamic star count)
     for (let i = 0; i < starCount; i++) {
@@ -105,9 +191,11 @@ export default function MinimalCinematicHero() {
       if (!ctx) return;
       const elapsed = (currentTime - startTime) / 1000;
 
-      // Smooth mouse movement
-      smoothMousePos.current.x += (mousePos.x - smoothMousePos.current.x) * 0.1;
-      smoothMousePos.current.y += (mousePos.y - smoothMousePos.current.y) * 0.1;
+      // Smooth mouse position for starfield parallax
+      smoothMousePos.current.x +=
+        (mousePos.x - smoothMousePos.current.x) * 0.12;
+      smoothMousePos.current.y +=
+        (mousePos.y - smoothMousePos.current.y) * 0.12;
 
       ctx.clearRect(0, 0, w, h);
 
@@ -124,7 +212,8 @@ export default function MinimalCinematicHero() {
 
         // Twinkling effect
         const twinkle = 0.6 + 0.4 * Math.sin(elapsed * 2 + star.twinkle);
-        const finalAlpha = star.alpha * twinkle * 0.7;
+        // Slightly brighter stars
+        const finalAlpha = star.alpha * twinkle * 0.78;
 
         // Parallax effect based on mouse - stronger effect
         const parallaxStrength = 1 - star.size / 2; // Smaller stars move more
@@ -140,7 +229,7 @@ export default function MinimalCinematicHero() {
           0,
           parallaxX,
           parallaxY,
-          star.size * 3
+          star.size * 3.2
         );
         gradient.addColorStop(0, `rgba(180, 255, 250, ${finalAlpha})`);
         gradient.addColorStop(0.4, `rgba(56, 189, 179, ${finalAlpha * 0.5})`);
@@ -398,8 +487,9 @@ export default function MinimalCinematicHero() {
             if (s === 0) ctx.moveTo(x, y);
             else ctx.lineTo(x, y);
           }
+          // Slightly stronger link visibility
           const alpha =
-            0.16 *
+            0.18 *
             envelope *
             Math.min(1.15, 0.6 + waveIntensityRef.current * 0.55);
           ctx.strokeStyle = `rgba(80, 230, 220, ${alpha})`;
@@ -413,22 +503,13 @@ export default function MinimalCinematicHero() {
     }
     animationId = requestAnimationFrame(animate);
 
-    function handleMouseMove(e: MouseEvent) {
-      setMousePos({
-        x: (e.clientX / window.innerWidth - 0.5) * 2,
-        y: (e.clientY / window.innerHeight - 0.5) * 2,
-      });
-    }
-    window.addEventListener("mousemove", handleMouseMove);
-
     return () => {
       window.removeEventListener("resize", resize);
-      window.removeEventListener("mousemove", handleMouseMove);
       if (animationId) {
         cancelAnimationFrame(animationId);
       }
     };
-  }, [starCount]);
+  }, [starCount, prefersReducedMotion]);
 
   return (
     <>
@@ -442,56 +523,224 @@ export default function MinimalCinematicHero() {
 
         {/* Ambient glow */}
         <div className="absolute inset-0 bg-gradient-to-t from-transparent via-[rgba(56,189,179,0.05)] to-transparent" />
-
         {/* Content */}
-        <div className="relative z-10 text-center px-6 max-w-4xl">
-          {/* Subtitle */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 0.7, y: 0 }}
-            transition={{ duration: 1.2, delay: 0.3 }}
-            className="mb-8"
-          >
-            <span className="text-xs uppercase tracking-[0.3em] text-teal-300/60 font-medium">
-              by Raiduix
-            </span>
-          </motion.div>
+        <div className="relative z-10 px-6 w-full max-w-6xl">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-10 items-center">
+            {/* Left: Title + copy + CTAs */}
+            <div className="text-center md:text-left">
+              {/* Top: Trust strip + Social buttons */}
+              <div className="mb-6 flex flex-col gap-3">
+                {/* Trust strip */}
+                <div>
+                  <div className="btn-shape inline-flex items-center gap-4 px-3 py-2 bg-[#0f172a]/50 text-[11px] text-slate-300/80">
+                    <div className="flex items-center gap-1.5">
+                      {/* Open-source icon */}
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        className="opacity-80"
+                      >
+                        <path d="M12 3a9 9 0 100 18 9 9 0 000-18z" />
+                        <path d="M12 3v9l6 6" />
+                      </svg>
+                      <span>Open‑source</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      {/* No sign-up icon */}
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        className="opacity-80"
+                      >
+                        <path d="M12 12a5 5 0 100-10 5 5 0 000 10z" />
+                        <path d="M3 21a9 9 0 0118 0" />
+                        <path d="M4 4l16 16" />
+                      </svg>
+                      <span>No sign‑up</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      {/* Free icon */}
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        className="opacity-80"
+                      >
+                        <path d="M20 7l-8 10-4-4" />
+                        <circle cx="12" cy="12" r="9" />
+                      </svg>
+                      <span>100% Free</span>
+                    </div>
+                  </div>
+                </div>
 
-          {/* Main title with parallax */}
-          <motion.h1
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1.5, ease: [0.19, 0.82, 0.25, 1] }}
-            style={{
-              transform: `perspective(1000px) rotateY(${
-                mousePos.x * 2
-              }deg) rotateX(${mousePos.y * -2}deg)`,
-            }}
-            className="text-6xl md:text-8xl font-bold mb-6 bg-gradient-to-br from-slate-200 via-teal-200 to-slate-400 bg-clip-text text-transparent leading-tight"
-          >
-            NeuraTone
-          </motion.h1>
+                {/* Social buttons */}
+                <div className="flex flex-row items-center gap-3 flex-wrap justify-start">
+                  <a
+                    href="https://github.com/RAIDUIX-DEVELOPER/raiduix-neuratone"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onMouseMove={handleSpotlightMouseMove}
+                    className="spotlight btn-accent btn-shape inline-flex items-center justify-center gap-2 cursor-pointer w-40 h-11 text-[11px] font-medium tracking-wide text-teal-300/80 ring-1 ring-white/5 hover:text-teal-200 hover:ring-teal-400/30 transition-colors backdrop-blur-[15px] bg-[#121826]/50"
+                  >
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.6"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22" />
+                    </svg>
+                    <span>GitHub</span>
+                  </a>
+                  <a
+                    href="https://x.com/neuratone"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onMouseMove={handleSpotlightMouseMove}
+                    className="spotlight spotlight-x btn-shape inline-flex items-center justify-center gap-2 cursor-pointer w-40 h-11 text-[11px] font-medium tracking-wide text-slate-300/70 ring-1 ring-white/5 hover:text-white hover:ring-slate-400/30 transition-colors backdrop-blur-[15px] bg-[#121826]/50"
+                  >
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.6"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M4 4l8 10.5L19 4l1 1.2L13.5 16H13L5 5.2 4 4z" />
+                      <path d="M10 16l-3.5 4H4l4.5-6M14 16l3.5 4H20l-4.5-6" />
+                    </svg>
+                    <span>Follow on X</span>
+                  </a>
+                </div>
+              </div>
 
-          {/* Description */}
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 0.8, y: 0 }}
-            transition={{ duration: 1.2, delay: 0.8 }}
-            className="text-lg md:text-xl text-slate-300/70 mb-12 max-w-2xl mx-auto leading-relaxed"
-          >
-            Open‑source, 100% free layered binaural & isochronic soundscapes
-          </motion.p>
+              {/* Main title with light parallax */}
+              <motion.h1
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 1.5, ease: [0.19, 0.82, 0.25, 1] }}
+                style={{
+                  transform: `perspective(1000px) rotateY(${
+                    mousePos.x * 1.2
+                  }deg) rotateX(${mousePos.y * -1.2}deg)`,
+                }}
+                className="text-6xl md:text-7xl lg:text-8xl font-bold mb-5 bg-gradient-to-br from-slate-200 via-teal-200 to-slate-400 bg-clip-text text-transparent leading-tight"
+              >
+                NeuraTone
+              </motion.h1>
 
-          {/* Action buttons */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1.2, delay: 1.2 }}
-          >
-            <HeroButtons />
-          </motion.div>
+              {/* Description */}
+              <motion.p
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 0.8, y: 0 }}
+                transition={{ duration: 1.2, delay: 0.8 }}
+                className="text-base md:text-lg text-slate-300/80 mb-8 max-w-xl md:mx-0 mx-auto leading-relaxed"
+              >
+                Create calming, layered binaural & isochronic soundscapes in
+                seconds. Free. No sign-up.
+              </motion.p>
 
-          {/* Scroll indicator (relocated absolute at bottom) */}
+              {/* Action buttons */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 1.2, delay: 1.0 }}
+              >
+                <HeroButtons showContinue={hasSession} />
+              </motion.div>
+
+              {/* Quick-start preset chips */}
+              <div
+                className="mt-6"
+                role="group"
+                aria-label="Quick start presets"
+              >
+                <div className="flex flex-wrap gap-2 justify-start">
+                  {quickPresets.map((p) => (
+                    <Link
+                      key={p.key}
+                      href={{ pathname: "/app", query: { preset: p.key } }}
+                      prefetch
+                      onMouseMove={handleSpotlightMouseMove}
+                      className={`spotlight btn-shape cursor-pointer px-3 py-1.5 text-[11px] tracking-wide transition-colors border ${chipClasses(
+                        p.key
+                      )}`}
+                      aria-label={`Start ${p.label} preset`}
+                    >
+                      {p.label}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+
+              {/* (Trust strip moved to the top block) */}
+            </div>
+
+            {/* Right: Product visual (larger, angled, overlaps behind text) */}
+            <div className="relative">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{
+                  duration: 1.2,
+                  delay: 0.6,
+                  ease: [0.19, 0.82, 0.25, 1],
+                }}
+                className="relative md:-mr-16 lg:-mr-24"
+              >
+                <div
+                  ref={visualRef}
+                  className="relative mx-auto w-[95%] md:w-[115%] lg:w-[125%] -z-10"
+                  style={{
+                    transformOrigin: "center left",
+                    willChange: "transform",
+                    transform: "translateX(-150px)",
+                  }}
+                >
+                  <Image
+                    src="/intro-visual.gif"
+                    alt="Preview of the NeuraTone mixer interface"
+                    width={1600}
+                    height={900}
+                    unoptimized
+                    priority
+                    className="w-full h-auto rounded-xl border border-white/10 shadow-[0_30px_90px_-20px_rgba(0,0,0,0.65)]"
+                  />
+                  {/* Soft glow */}
+                  <div
+                    className="pointer-events-none absolute inset-0 rounded-xl"
+                    style={{
+                      boxShadow:
+                        "inset 0 1px 0 rgba(255,255,255,0.05), 0 0 100px rgba(56,189,179,0.10)",
+                    }}
+                  />
+                </div>
+              </motion.div>
+            </div>
+          </div>
+
+          {/* Scroll indicator (absolute at bottom) */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 0.55 }}
@@ -518,142 +767,6 @@ export default function MinimalCinematicHero() {
           </span>
         </motion.div>
       </section>
-      {/* Collapsible Particle Controls */}
-      <div className="pointer-events-none">
-        <div
-          className={`fixed top-4 right-4 z-40 w-64 text-[11px] font-medium ${
-            controlsOpen ? "pointer-events-auto" : "pointer-events-auto"
-          }`}
-        >
-          <button
-            onClick={() => setControlsOpen((o) => !o)}
-            className="w-full flex items-center justify-between rounded-md bg-[#16202e]/70 border border-white/10 px-3 py-2 text-slate-300 hover:bg-[#1d2936]/80 backdrop-blur-sm transition"
-          >
-            <span className="tracking-wide">Particle Controls</span>
-            <span className="text-teal-300 text-xs">
-              {controlsOpen ? "−" : "+"}
-            </span>
-          </button>
-          {controlsOpen && (
-            <div className="mt-2 space-y-4 rounded-md bg-[#101823]/90 border border-white/10 p-3 backdrop-blur-md shadow-lg">
-              <div>
-                <label className="flex items-center justify-between mb-1">
-                  <span className="text-slate-400">Stars</span>
-                  <span className="text-teal-300 tabular-nums">
-                    {starCount}
-                  </span>
-                </label>
-                <input
-                  type="range"
-                  min={40}
-                  max={160}
-                  value={starCount}
-                  onChange={(e) => setStarCount(parseInt(e.target.value))}
-                  className="w-full accent-teal-400"
-                />
-              </div>
-              <div>
-                <label className="flex items-center justify-between mb-1">
-                  <span className="text-slate-400">Connection Density</span>
-                  <span className="text-teal-300 tabular-nums">
-                    {connectionDensity.toFixed(1)}
-                  </span>
-                </label>
-                <input
-                  type="range"
-                  min={0}
-                  max={2}
-                  step={0.1}
-                  value={connectionDensity}
-                  onChange={(e) =>
-                    setConnectionDensity(parseFloat(e.target.value))
-                  }
-                  className="w-full accent-teal-400"
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <label htmlFor="toggle-connections" className="text-slate-400">
-                  Connections
-                </label>
-                <input
-                  id="toggle-connections"
-                  type="checkbox"
-                  checked={connectionsEnabled}
-                  onChange={(e) => setConnectionsEnabled(e.target.checked)}
-                  className="accent-teal-400 h-4 w-4"
-                />
-              </div>
-              <div>
-                <span className="block mb-1 text-slate-400">Waveforms</span>
-                <div className="flex flex-wrap gap-2">
-                  {(["sine", "triangle", "saw", "square"] as WaveKind[]).map(
-                    (w) => (
-                      <button
-                        key={w}
-                        onClick={() =>
-                          setWaveforms((prev) => ({ ...prev, [w]: !prev[w] }))
-                        }
-                        className={`px-2 py-1 rounded text-[10px] border transition ${
-                          waveforms[w]
-                            ? "bg-teal-500/20 border-teal-400/40 text-teal-200"
-                            : "bg-slate-600/10 border-white/10 text-slate-400 hover:border-white/20"
-                        }`}
-                      >
-                        {w}
-                      </button>
-                    )
-                  )}
-                </div>
-              </div>
-              <div>
-                <label className="flex items-center justify-between mb-1">
-                  <span className="text-slate-400">Wave Intensity</span>
-                  <span className="text-teal-300 tabular-nums">
-                    {waveIntensity.toFixed(1)}
-                  </span>
-                </label>
-                <input
-                  type="range"
-                  min={0.3}
-                  max={2}
-                  step={0.1}
-                  value={waveIntensity}
-                  onChange={(e) => setWaveIntensity(parseFloat(e.target.value))}
-                  className="w-full accent-teal-400"
-                />
-              </div>
-              <div className="flex gap-2 pt-1">
-                <button
-                  onClick={() => {
-                    setStarCount(80);
-                    setConnectionDensity(0.5);
-                    setConnectionsEnabled(true);
-                    setWaveforms({
-                      sine: true,
-                      triangle: true,
-                      saw: false,
-                      square: false,
-                    });
-                    setWaveIntensity(1);
-                  }}
-                  className="flex-1 rounded bg-teal-500/10 hover:bg-teal-500/20 text-teal-300 py-1 transition border border-teal-400/20"
-                >
-                  Reset
-                </button>
-                <button
-                  onClick={() => setControlsOpen(false)}
-                  className="flex-1 rounded bg-slate-500/10 hover:bg-slate-500/20 text-slate-300 py-1 transition border border-white/10"
-                >
-                  Close
-                </button>
-              </div>
-              <p className="text-[10px] leading-snug text-slate-500 pt-1">
-                Adjust visual intensity. Values persist until page refresh.
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
     </>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   Play,
@@ -20,6 +21,8 @@ interface EngineRef {
 }
 
 export default function Mixer() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const {
     layers,
     updateLayer,
@@ -60,6 +63,7 @@ export default function Mixer() {
   const toggleExpanded = (id: string) =>
     setExpanded((m) => ({ ...m, [id]: !m[id] }));
   const activeCount = layers.filter((l) => l.isPlaying).length;
+  const didAutoloadRef = useRef(false);
 
   // Helpers: preset summaries for modal cards
   const uniquePresetName = (base: string) => {
@@ -145,6 +149,79 @@ export default function Mixer() {
     showDeleteAllModal,
     showSaveAsModal,
   ]);
+
+  // On first mount, handle query params to auto-load a preset
+  useEffect(() => {
+    if (didAutoloadRef.current) return;
+    // Prefer explicit preset over continue
+    const presetParam = searchParams.get("preset");
+    const continueParam = searchParams.get("continue");
+
+    const st = useAppStore.getState();
+    const byName = (name: string) =>
+      st.presets.find((p) => p.name.toLowerCase() === name.toLowerCase());
+    const byId = (id: string) => st.presets.find((p) => p.id === id);
+
+    let target: { id: string; name: string } | null = null;
+
+    if (presetParam) {
+      const decoded = decodeURIComponent(presetParam);
+      const match = byId(decoded) || byName(decoded);
+      if (match) target = { id: match.id, name: match.name };
+      // If no presets exist yet (e.g., migrated users with empty persisted store),
+      // seed and resolve built-in defaults by key for first-run experience.
+      if (!target && st.presets.length === 0) {
+        const key = decoded.toLowerCase();
+        const keyToId: Record<string, string> = {
+          sleep: "preset-sleep",
+          calm: "preset-calm",
+          focus: "preset-focus",
+        };
+        const fallbackId = keyToId[key];
+        if (fallbackId) {
+          // loadPreset will also inject seeded defaults when empty
+          loadPreset(fallbackId);
+          const seeded = useAppStore
+            .getState()
+            .presets.find((p) => p.id === fallbackId);
+          if (seeded) {
+            const newLayers = useAppStore.getState().layers;
+            lastLoadedSnapshot.current = JSON.stringify(
+              newLayers.map(({ id, isPlaying, ...rest }) => rest)
+            );
+            setLoadedPresetId(seeded.id);
+            setPresetName(seeded.name);
+            didAutoloadRef.current = true;
+            try {
+              router.replace("/app");
+            } catch {}
+            return; // early exit after seeding + load
+          }
+        }
+      }
+    } else if (continueParam === "1") {
+      const lastId = st.lastPresetId;
+      if (lastId) {
+        const match = byId(lastId);
+        if (match) target = { id: match.id, name: match.name };
+      }
+    }
+
+    if (target) {
+      loadPreset(target.id);
+      const newLayers = useAppStore.getState().layers;
+      lastLoadedSnapshot.current = JSON.stringify(
+        newLayers.map(({ id, isPlaying, ...rest }) => rest)
+      );
+      setLoadedPresetId(target.id);
+      setPresetName(target.name);
+      didAutoloadRef.current = true;
+      // Clean the query string to avoid repeated autoloads and keep /app tidy
+      try {
+        router.replace("/app");
+      } catch {}
+    }
+  }, [searchParams, router, loadPreset]);
 
   // Initialize engines and cleanup
   useEffect(() => {

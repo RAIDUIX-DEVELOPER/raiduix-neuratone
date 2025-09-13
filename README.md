@@ -18,7 +18,7 @@
 - **Add / remove** layers dynamically (engines stop & dispose cleanly)
 - **Local presets** (save / overwrite by name with confirmation modal, delete with confirmation)
 - **No bundled default presets** – entirely user defined now
-- Offline‑ready shell (PWA infra scaffolded; service worker enabled only in prod)
+- PWA scaffolding in place (service worker only in prod) — offline playback is not currently supported
 - **Elastic hero background**: multi-line organic canvas waveform with subtle motion, interactive stick + ripple physics
 - Mobile‑first UI with glassy dark surfaces & accessible contrast
 

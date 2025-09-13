@@ -1,66 +1,63 @@
 "use client";
-
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAppStore } from "@/lib/store";
-export default function HeroButtons() {
+import { useCallback } from "react";
+
+export default function HeroButtons({
+  showContinue = false,
+}: {
+  showContinue?: boolean;
+}) {
   const router = useRouter();
   const setRouteLoading = useAppStore((s) => s.setRouteLoading);
+
+  const handleHoverPrefetch = useCallback(() => {
+    try {
+      router.prefetch?.("/app");
+    } catch {}
+  }, [router]);
+
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent<HTMLButtonElement | HTMLAnchorElement>) => {
+      const t = e.currentTarget as HTMLElement;
+      const rect = t.getBoundingClientRect();
+      const x = ((e.clientX - rect.left) / rect.width) * 100;
+      const y = ((e.clientY - rect.top) / rect.height) * 100;
+      t.style.setProperty("--x", `${x}%`);
+      t.style.setProperty("--y", `${y}%`);
+    },
+    []
+  );
+
   return (
-    <div className="mt-10 flex flex-row items-center gap-3 flex-wrap justify-center">
+    <div className="mt-10 flex flex-row items-center gap-3 flex-wrap justify-start">
+      {/* Launch Mixer */}
       <button
+        onMouseEnter={handleHoverPrefetch}
+        onMouseMove={handleMouseMove}
         onClick={() => {
           setRouteLoading(true);
           // small delay to display animation before navigation
           setTimeout(() => router.push("/app"), 50);
         }}
-        className="spotlight spotlight-launch focus-ring inline-flex items-center justify-center rounded-md border border-orange-500 bg-[#121826]/70 w-40 h-11 text-sm font-medium text-orange-300 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.55),0_0_0_1px_rgba(251,191,36,0.25)] transition hover:bg-[#1b2331] hover:text-amber-200 hover:border-amber-400/80"
+        className="spotlight spotlight-launch focus-ring btn-shape inline-flex items-center justify-center cursor-pointer bg-[#121826]/70 w-44 h-11 text-sm font-medium text-orange-300 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.55),0_0_0_1px_rgba(251,191,36,0.25)] transition transform hover:scale-[1.02] hover:bg-[#1b2331] hover:text-amber-200 hover:border-amber-400/80"
       >
-        Launch App
+        Launch Mixer
       </button>
-      <a
-        href="https://github.com/RAIDUIX-DEVELOPER/raiduix-neuratone"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="spotlight btn-accent inline-flex items-center justify-center gap-2 rounded-md w-40 h-11 text-[11px] font-medium tracking-wide text-teal-300/80 ring-1 ring-white/5 hover:text-teal-200 hover:ring-teal-400/30 transition-colors backdrop-blur-[15px] bg-[#121826]/50"
-      >
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.6"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
+      {/* Continue last session (if available) */}
+      {showContinue && (
+        <button
+          onMouseEnter={handleHoverPrefetch}
+          onMouseMove={handleMouseMove}
+          onClick={() => {
+            setRouteLoading(true);
+            setTimeout(() => router.push("/app?continue=1"), 50);
+          }}
+          className="spotlight btn-shape focus-ring inline-flex items-center justify-center cursor-pointer bg-[#102023]/70 w-48 h-11 text-sm font-medium text-teal-200/90 ring-1 ring-white/5 hover:text-teal-100 transition transform hover:scale-[1.02] hover:bg-[#113135]"
         >
-          <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22" />
-        </svg>
-        <span>GitHub</span>
-      </a>
-      <a
-        href="https://x.com/raiduix"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="spotlight spotlight-x inline-flex items-center justify-center gap-2 rounded-md w-40 h-11 text-[11px] font-medium tracking-wide text-slate-300/70 ring-1 ring-white/5 hover:text-white hover:ring-slate-400/30 transition-colors backdrop-blur-[15px] bg-[#121826]/50"
-      >
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.6"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <path d="M4 4l8 10.5L19 4l1 1.2L13.5 16H13L5 5.2 4 4z" />
-          <path d="M10 16l-3.5 4H4l4.5-6M14 16l3.5 4H20l-4.5-6" />
-        </svg>
-        <span>Follow on X</span>
-      </a>
+          Continue last session
+        </button>
+      )}
     </div>
   );
 }
