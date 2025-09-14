@@ -13,8 +13,13 @@ import {
   X,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
-import { SoundLayer, createEngine } from "@/lib/audioEngine";
+import { SoundLayer, createEngine, type LayerEffect } from "@/lib/audioEngine";
 import OrbVisualizer from "./OrbVisualizer";
+import {
+  createNoiseNode,
+  type NoiseType,
+  type NoiseNodeHandle,
+} from "@/lib/effects";
 
 interface EngineRef {
   [id: string]: ReturnType<typeof createEngine>;
@@ -26,6 +31,8 @@ export default function Mixer() {
   const {
     layers,
     updateLayer,
+    addLayerEffect,
+    removeLayerEffect,
     savePreset,
     updatePreset,
     addLayer,
@@ -38,6 +45,8 @@ export default function Mixer() {
   } = useAppStore((s) => ({
     layers: s.layers,
     updateLayer: s.updateLayer,
+    addLayerEffect: (s as any).addLayerEffect,
+    removeLayerEffect: (s as any).removeLayerEffect,
     savePreset: s.savePreset,
     updatePreset: (s as any).updatePreset,
     addLayer: s.addLayer,
@@ -56,6 +65,15 @@ export default function Mixer() {
   const [showPresetsModal, setShowPresetsModal] = useState(false);
   const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
   const [showSaveAsModal, setShowSaveAsModal] = useState(false);
+  const [showEffectsLibrary, setShowEffectsLibrary] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
+  // Effects Library (Noise preview) state
+  const [noiseType, setNoiseType] = useState<NoiseType>("white");
+  const [noiseGain, setNoiseGain] = useState(0.25);
+  const [noisePan, setNoisePan] = useState(0);
+  const [targetLayerId, setTargetLayerId] = useState<string | null>(null);
+  const noiseCtxRef = useRef<AudioContext | null>(null);
+  const noiseHandleRef = useRef<NoiseNodeHandle | null>(null);
   const [saveAsName, setSaveAsName] = useState("");
   const [loadedPresetId, setLoadedPresetId] = useState<string | null>(null);
   const lastLoadedSnapshot = useRef<string>("[]");
@@ -122,6 +140,8 @@ export default function Mixer() {
         setShowPresetsModal(false);
         setShowResetAllModal(false);
         setShowDeleteAllModal(false);
+        setShowEffectsLibrary(false);
+        setShowHelp(false);
       }
     };
     window.addEventListener("keydown", onKey);
@@ -134,7 +154,9 @@ export default function Mixer() {
       showPresetsModal ||
       showResetAllModal ||
       showDeleteAllModal ||
-      showSaveAsModal
+      showSaveAsModal ||
+      showEffectsLibrary ||
+      showHelp
     ) {
       document.body.style.overflow = "hidden";
     } else {
@@ -148,7 +170,55 @@ export default function Mixer() {
     showResetAllModal,
     showDeleteAllModal,
     showSaveAsModal,
+    showEffectsLibrary,
+    showHelp,
   ]);
+
+  // Effects Library: helpers for noise preview lifecycle
+  async function ensureNoisePreviewStarted() {
+    if (!noiseCtxRef.current) {
+      const Ctor = (window.AudioContext ||
+        (window as any).webkitAudioContext) as typeof AudioContext;
+      noiseCtxRef.current = new Ctor();
+    }
+    const ctx = noiseCtxRef.current!;
+    try {
+      await ctx.resume();
+    } catch {}
+    if (!noiseHandleRef.current) {
+      const handle = await createNoiseNode(ctx, {
+        type: noiseType,
+        gain: noiseGain,
+        pan: noisePan,
+      });
+      handle.connect(ctx.destination);
+      noiseHandleRef.current = handle;
+    } else {
+      noiseHandleRef.current.setType(noiseType);
+      noiseHandleRef.current.setGain(noiseGain);
+      noiseHandleRef.current.setPan(noisePan);
+    }
+  }
+  function stopNoisePreview() {
+    const h = noiseHandleRef.current;
+    try {
+      h?.disconnect();
+    } catch {}
+    try {
+      h?.dispose();
+    } catch {}
+    noiseHandleRef.current = null;
+  }
+  // Cleanup on close/unmount
+  useEffect(() => {
+    if (!showEffectsLibrary) {
+      stopNoisePreview();
+    }
+    return () => {
+      stopNoisePreview();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showEffectsLibrary]);
 
   // On first mount, handle query params to auto-load a preset
   useEffect(() => {
@@ -392,7 +462,7 @@ export default function Mixer() {
             <button
               onClick={() => setShowPresetsModal((v) => !v)}
               aria-expanded={showPresetsModal}
-              aria-controls="presets-modal"
+              aria-controls="presets-drawer-panel"
               className={`inline-flex items-center gap-2 px-3 py-1.5 btn-shape text-white text-xs font-medium transition-colors border ${
                 showPresetsModal
                   ? "bg-white/15 border-white/30"
@@ -410,6 +480,49 @@ export default function Mixer() {
                   Open Presets
                 </>
               )}
+            </button>
+            <button
+              onClick={() => setShowEffectsLibrary((v) => !v)}
+              aria-expanded={showEffectsLibrary}
+              aria-controls="effects-library-panel"
+              className={`inline-flex items-center gap-2 px-3 py-1.5 btn-shape text-white text-xs font-medium transition-colors border ${
+                showEffectsLibrary
+                  ? "bg-white/15 border-white/30"
+                  : "bg-white/5 hover:bg-white/10 border-white/10"
+              }`}
+            >
+              {showEffectsLibrary ? (
+                <>
+                  <X size={14} />
+                  Close Effects
+                </>
+              ) : (
+                <>
+                  <ChevronDown size={14} />
+                  Effects Library
+                </>
+              )}
+            </button>
+
+            {/* Help pill button */}
+            <button
+              onClick={() => setShowHelp(true)}
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/15 text-white text-xs font-medium border border-white/10"
+              aria-label="Open help"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <path d="M9.09 9a3 3 0 1 1 5.82 1c0 2-3 2-3 4" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+              Help
             </button>
           </div>
         </div>
@@ -469,18 +582,25 @@ export default function Mixer() {
                 <div className="sticky top-0 z-10 px-3 py-2 mb-2 bg-black/35 backdrop-blur supports-[backdrop-filter]:bg-black/30 border-b border-white/10">
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={playAll}
-                      className="inline-flex items-center gap-2 px-3 py-1.5 btn-shape bg-teal-500/80 hover:bg-teal-500 text-white text-xs font-medium transition-colors"
+                      onClick={() => {
+                        if (activeCount > 0) stopAll();
+                        else playAll();
+                      }}
+                      className={`inline-flex items-center gap-2 px-3 py-1.5 btn-shape text-white text-xs font-medium transition-colors ${
+                        activeCount > 0
+                          ? "bg-white/10 hover:bg-white/20"
+                          : "bg-teal-500/80 hover:bg-teal-500"
+                      }`}
                     >
-                      <Play size={16} />
-                      Play All
-                    </button>
-                    <button
-                      onClick={stopAll}
-                      className="inline-flex items-center gap-2 px-3 py-1.5 btn-shape bg-white/10 hover:bg-white/20 text-white text-xs font-medium transition-colors"
-                    >
-                      <Square size={16} />
-                      Stop All
+                      {activeCount > 0 ? (
+                        <>
+                          <Square size={16} /> Stop All
+                        </>
+                      ) : (
+                        <>
+                          <Play size={16} /> Play All
+                        </>
+                      )}
                     </button>
                     <button
                       onClick={() => setShowResetAllModal(true)}
@@ -657,16 +777,36 @@ export default function Mixer() {
                           <div className="space-y-2">
                             <div className="grid grid-cols-2 gap-3 text-[10px]">
                               <label className="space-y-1">
-                                <span className="flex justify-between text-white/50">
+                                <span className="flex justify-between items-center text-white/50">
                                   <span>Base</span>
-                                  <span className="text-white/70 font-medium">
-                                    {layer.baseFreq}Hz
+                                  <span className="text-white/70 font-medium inline-flex items-center gap-1">
+                                    <input
+                                      type="number"
+                                      value={layer.baseFreq ?? 440}
+                                      min={1}
+                                      max={5000}
+                                      step={1}
+                                      onChange={(e) => {
+                                        const raw = parseFloat(e.target.value);
+                                        const cur = layer.baseFreq ?? 440;
+                                        const clamped = Math.max(
+                                          1,
+                                          Math.min(5000, isNaN(raw) ? cur : raw)
+                                        );
+                                        updateLayer(layer.id, {
+                                          baseFreq: clamped,
+                                        });
+                                        engine?.update({ baseFreq: clamped });
+                                      }}
+                                      className="w-20 bg-black/40 border border-white/20 rounded-md px-2 py-1 text-[11px] text-white focus:outline-none focus:ring-1 focus:ring-teal-500/50 focus:border-teal-500/50"
+                                    />
+                                    Hz
                                   </span>
                                 </span>
                                 <input
                                   type="range"
-                                  min={80}
-                                  max={1000}
+                                  min={1}
+                                  max={5000}
                                   step={1}
                                   value={layer.baseFreq}
                                   onChange={(e) => {
@@ -678,23 +818,63 @@ export default function Mixer() {
                                 />
                               </label>
                               <label className="space-y-1">
-                                <span className="flex justify-between text-white/50">
+                                <span className="flex justify-between items-center text-white/50">
                                   <span>
                                     {layer.type === "binaural"
                                       ? "Beat"
                                       : "Pulse"}
                                   </span>
-                                  <span className="text-white/70 font-medium">
-                                    {layer.type === "binaural"
-                                      ? layer.beatOffset
-                                      : layer.pulseFreq?.toFixed(1) || 0}
+                                  <span className="text-white/70 font-medium inline-flex items-center gap-1">
+                                    <input
+                                      type="number"
+                                      value={
+                                        layer.type === "binaural"
+                                          ? layer.beatOffset ?? 0
+                                          : layer.pulseFreq ?? 10
+                                      }
+                                      min={layer.type === "binaural" ? 0 : 0.5}
+                                      max={1000}
+                                      step={0.1}
+                                      onChange={(e) => {
+                                        const raw = parseFloat(e.target.value);
+                                        const minVal =
+                                          layer.type === "binaural" ? 0 : 0.5;
+                                        const fallback =
+                                          layer.type === "binaural"
+                                            ? layer.beatOffset ?? 0
+                                            : layer.pulseFreq ?? 10;
+                                        const clamped = Math.max(
+                                          minVal,
+                                          Math.min(
+                                            1000,
+                                            isNaN(raw) ? fallback : raw
+                                          )
+                                        );
+                                        if (layer.type === "binaural") {
+                                          updateLayer(layer.id, {
+                                            beatOffset: clamped,
+                                          });
+                                          engine?.update({
+                                            beatOffset: clamped,
+                                          });
+                                        } else {
+                                          updateLayer(layer.id, {
+                                            pulseFreq: clamped,
+                                          });
+                                          engine?.update({
+                                            pulseFreq: clamped,
+                                          });
+                                        }
+                                      }}
+                                      className="w-24 bg-black/40 border border-white/20 rounded-md px-2 py-1 text-[11px] text-white focus:outline-none focus:ring-1 focus:ring-teal-500/50 focus:border-teal-500/50"
+                                    />
                                     Hz
                                   </span>
                                 </span>
                                 <input
                                   type="range"
                                   min={layer.type === "binaural" ? 0 : 0.5}
-                                  max={40}
+                                  max={1000}
                                   step={0.1}
                                   value={
                                     layer.type === "binaural"
@@ -794,6 +974,65 @@ export default function Mixer() {
                               </div>
                             )}
                           </div>
+
+                          {/* Effects chips at bottom of layer card */}
+                          {layer.effects && layer.effects.length > 0 && (
+                            <div className="pt-2 mt-2 border-t border-white/5">
+                              <div className="flex flex-wrap gap-1">
+                                {layer.effects.map((fx: LayerEffect) => {
+                                  // Color mapping per effect
+                                  let bg = "bg-white/10";
+                                  let text = "text-white/70";
+                                  let border = "border-white/20";
+                                  if (fx.kind === "noise") {
+                                    if (fx.type === "white") {
+                                      bg = "bg-slate-500/15";
+                                      text = "text-slate-200";
+                                      border = "border-slate-400/30";
+                                    } else if (fx.type === "pink") {
+                                      bg = "bg-rose-500/15";
+                                      text = "text-rose-200";
+                                      border = "border-rose-400/30";
+                                    } else if (fx.type === "brown") {
+                                      bg = "bg-amber-500/15";
+                                      text = "text-amber-200";
+                                      border = "border-amber-400/30";
+                                    }
+                                  }
+                                  return (
+                                    <span
+                                      key={fx.id}
+                                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] ${bg} ${text} border ${border}`}
+                                    >
+                                      {fx.kind === "noise"
+                                        ? `${fx.type} noise`
+                                        : fx.kind}
+                                      <button
+                                        onClick={() => {
+                                          removeLayerEffect(layer.id, fx.id);
+                                          const updated = useAppStore
+                                            .getState()
+                                            .layers.find(
+                                              (l) => l.id === layer.id
+                                            );
+                                          if (updated) {
+                                            engines.current[layer.id]?.update({
+                                              effects: (updated.effects ||
+                                                []) as any,
+                                            });
+                                          }
+                                        }}
+                                        className="ml-1 p-0.5 rounded hover:bg-white/10"
+                                        aria-label="Remove effect"
+                                      >
+                                        <X size={12} />
+                                      </button>
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </motion.div>
                     );
@@ -868,90 +1107,551 @@ export default function Mixer() {
         </div>
       )}
 
-      {showPresetsModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-          onClick={() => setShowPresetsModal(false)}
-        >
+      {/* Help Overlay */}
+      {showHelp && (
+        <div className="fixed inset-0 z-[60]" aria-labelledby="help-title">
+          {/* Backdrop */}
           <div
-            id="presets-modal"
-            className="w-full max-w-md rounded-2xl border border-white/20 bg-black/40 backdrop-blur-xl p-4 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setShowHelp(false)}
+          />
+          {/* Centered panel constrained over mixer area */}
+          <div
+            className="absolute inset-0 flex items-start justify-center pt-16 px-4"
+            onClick={() => setShowHelp(false)}
           >
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-base font-medium text-white">Presets</h3>
-              <button
-                className="p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/10"
-                onClick={() => setShowPresetsModal(false)}
-                aria-label="Close presets"
-              >
-                <X size={16} />
-              </button>
-            </div>
-            <div className="max-h-[60vh] overflow-y-auto pr-1">
-              {presets.length === 0 ? (
-                <div className="text-sm text-white/60 p-4 text-center">
-                  No presets saved yet. Use "Save Preset" to store the current
-                  setup.
-                </div>
-              ) : (
-                <ul className="space-y-2">
-                  {presets.map((p) => (
-                    <li
-                      key={p.id}
-                      className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/30 px-3 py-2"
-                    >
-                      <div className="min-w-0">
-                        <div className="text-sm text-white truncate">
-                          {p.name}
-                        </div>
-                        <div className="text-[10px] text-white/60 truncate">
-                          {p.layers.length} layer
-                          {p.layers.length === 1 ? "" : "s"}{" "}
-                          {(() => {
-                            const tc = summarizeTypeCounts(p.layers);
-                            return tc ? `• ${tc}` : "";
-                          })()}
-                        </div>
-                        <div className="text-[10px] text-white/50 truncate">
-                          {summarizeLayersCompact(p.layers)}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <button
-                          className="px-2.5 py-1.5 btn-shape text-[11px] font-medium bg-teal-500/80 hover:bg-teal-500 text-white"
-                          onClick={() => {
-                            loadPreset(p.id);
-                            const newLayers = useAppStore.getState().layers;
-                            lastLoadedSnapshot.current = JSON.stringify(
-                              newLayers.map(
-                                ({ id, isPlaying, ...rest }) => rest
-                              )
-                            );
-                            setLoadedPresetId(p.id);
-                            setPresetName(p.name);
-                            setShowPresetsModal(false);
-                          }}
-                        >
-                          Load
-                        </button>
-                        <button
-                          className="px-2.5 py-1.5 btn-shape text-[11px] font-medium bg-white/5 hover:bg-white/10 text-white/70 border border-white/10"
-                          onClick={() => {
-                            deletePreset(p.id);
-                            if (loadedPresetId === p.id)
-                              setLoadedPresetId(null);
-                          }}
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
+            <div
+              role="dialog"
+              aria-modal="true"
+              className="w-full max-w-3xl rounded-2xl border border-white/15 bg-black/60 backdrop-blur-2xl shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between px-5 py-3 border-b border-white/10">
+                <h3 id="help-title" className="text-sm font-medium text-white">
+                  Help • Neural Mixer
+                </h3>
+                <button
+                  className="p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/10"
+                  onClick={() => setShowHelp(false)}
+                  aria-label="Close help"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+              <div className="max-h-[70vh] overflow-y-auto px-5 py-4 space-y-3">
+                {/* Accordions */}
+                {[
+                  {
+                    title: "Global controls",
+                    body: (
+                      <ul className="list-disc list-inside text-white/80 text-sm space-y-1">
+                        <li>
+                          <b>Play/Stop All</b>: Toggles all layers. When any
+                          layer is active, the button shows Stop All; otherwise
+                          Play All.
+                        </li>
+                        <li>
+                          <b>Reset All</b>: Resets each layer to defaults (freq,
+                          beat/pulse, volume, pan, waveform).
+                        </li>
+                        <li>
+                          <b>Delete All</b>: Removes all layers and stops their
+                          audio engines.
+                        </li>
+                        <li>
+                          <b>Presets</b>: Open the presets drawer to load, save,
+                          or duplicate presets.
+                        </li>
+                        <li>
+                          <b>Effects Library</b>: Open the effects drawer to
+                          preview effects and add them to a specific layer.
+                        </li>
+                      </ul>
+                    ),
+                  },
+                  {
+                    title: "Layer controls",
+                    body: (
+                      <ul className="list-disc list-inside text-white/80 text-sm space-y-1">
+                        <li>
+                          <b>Type</b>: Choose Binaural or Isochronic per layer.
+                          Switching adapts control set.
+                        </li>
+                        <li>
+                          <b>Base</b>: Carrier frequency of the layer (Hz).
+                        </li>
+                        <li>
+                          <b>Beat/Pulse</b>: For Binaural, the frequency offset
+                          (Δ) between channels; for Isochronic, the pulse rate
+                          (Hz).
+                        </li>
+                        <li>
+                          <b>Vol</b>: Output amplitude of the layer (0–100%).
+                        </li>
+                        <li>
+                          <b>Pan</b>: Stereo position (L/C/R).
+                        </li>
+                        <li>
+                          <b>Waveform</b>: Oscillator shape: sine, square, saw,
+                          triangle.
+                        </li>
+                        <li>
+                          <b>Per-layer effects</b>: Applied effects are shown as
+                          chips at the bottom of the card; click X to remove.
+                        </li>
+                      </ul>
+                    ),
+                  },
+                  {
+                    title: "Effects Library",
+                    body: (
+                      <ul className="list-disc list-inside text-white/80 text-sm space-y-1">
+                        <li>
+                          <b>Preview/Stop</b>: Toggle live preview of the
+                          selected effect settings (uses its own audio context).
+                        </li>
+                        <li>
+                          <b>Choose layer to add effect</b>: Select which layer
+                          should receive the configured effect.
+                        </li>
+                        <li>
+                          <b>Noise type</b>: White (flat spectrum), Pink (−3
+                          dB/oct), Brown (−6 dB/oct) tonal balances.
+                        </li>
+                        <li>
+                          <b>Gain</b>: Effect level. This drives the worklet
+                          gain parameter, not your layer volume.
+                        </li>
+                        <li>
+                          <b>Pan</b>: Position the effect in stereo field.
+                        </li>
+                        <li>
+                          <b>Add to Layer</b>: Creates a per-layer effect node
+                          managed by the layer engine; chips appear on the layer
+                          card.
+                        </li>
+                      </ul>
+                    ),
+                  },
+                  {
+                    title: "Presets",
+                    body: (
+                      <ul className="list-disc list-inside text-white/80 text-sm space-y-1">
+                        <li>
+                          <b>Update Preset</b>: When a preset is loaded, save
+                          changes over the same preset.
+                        </li>
+                        <li>
+                          <b>Save As New</b>: Duplicate the current setup under
+                          a new name.
+                        </li>
+                        <li>
+                          <b>Save Preset</b>: Create a new preset when none is
+                          loaded.
+                        </li>
+                        <li>
+                          <b>Presets Drawer</b>: Load or delete saved presets;
+                          summaries include counts and concise layer
+                          descriptions.
+                        </li>
+                      </ul>
+                    ),
+                  },
+                  {
+                    title: "Visualizer",
+                    body: (
+                      <ul className="list-disc list-inside text-white/80 text-sm space-y-1">
+                        <li>
+                          <b>Orb</b>: Reflects energy/pulse from active layers
+                          using analyser nodes.
+                        </li>
+                        <li>
+                          <b>Sync</b>: The orb collects analyser data from each
+                          layer engine to render composite visuals.
+                        </li>
+                      </ul>
+                    ),
+                  },
+                  {
+                    title: "Audio engine basics",
+                    body: (
+                      <ul className="list-disc list-inside text-white/80 text-sm space-y-1">
+                        <li>
+                          <b>Contexts</b>: Layer audio uses a shared Web Audio
+                          context; effect preview uses a separate one.
+                        </li>
+                        <li>
+                          <b>Start/Stop</b>: Engines create oscillators/gates on
+                          start and tear them down on stop/dispose.
+                        </li>
+                        <li>
+                          <b>Effects</b>: Every effect has its own node(s). When
+                          you add/remove an effect, the engine reconciles:
+                          creating/updating/disposing nodes and routing them to
+                          output only when the layer is playing.
+                        </li>
+                        <li>
+                          <b>Persistence</b>: Effects are saved with presets and
+                          restored on load.
+                        </li>
+                      </ul>
+                    ),
+                  },
+                  {
+                    title: "Tips",
+                    body: (
+                      <ul className="list-disc list-inside text-white/80 text-sm space-y-1">
+                        <li>
+                          Start with modest <b>Gain</b> on noise effects and
+                          adjust slowly.
+                        </li>
+                        <li>
+                          Use <b>Pan</b> creatively to create space between
+                          tonal layers and noise.
+                        </li>
+                        <li>
+                          Save variations as presets to compare sessions
+                          quickly.
+                        </li>
+                      </ul>
+                    ),
+                  },
+                ].map((sec, i) => (
+                  <details
+                    key={i}
+                    className="group rounded-xl border border-white/10 bg-white/5"
+                  >
+                    <summary className="cursor-pointer select-none flex items-center justify-between px-4 py-3 text-white/90 text-sm">
+                      <span>{sec.title}</span>
+                      <span className="text-white/50 group-open:rotate-180 transition-transform">
+                        <ChevronDown size={16} />
+                      </span>
+                    </summary>
+                    <div className="px-4 pb-4 pt-1">{sec.body}</div>
+                  </details>
+                ))}
+              </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {showPresetsModal && (
+        <div
+          className="fixed inset-0 z-50"
+          aria-labelledby="presets-drawer-title"
+        >
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setShowPresetsModal(false)}
+          />
+          {/* Drawer Panel */}
+          <aside
+            id="presets-drawer-panel"
+            className="absolute right-0 top-0 h-full w-[320px] sm:w-[360px] border-l border-white/10 bg-black/60 backdrop-blur-xl shadow-2xl"
+            role="dialog"
+            aria-modal="true"
+          >
+            <div className="h-full flex flex-col">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
+                <h3
+                  id="presets-drawer-title"
+                  className="text-sm font-medium text-white"
+                >
+                  Presets
+                </h3>
+                <button
+                  className="p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/10"
+                  onClick={() => setShowPresetsModal(false)}
+                  aria-label="Close presets"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto px-4 py-3">
+                {presets.length === 0 ? (
+                  <div className="text-sm text-white/60 p-4 text-center">
+                    No presets saved yet. Use "Save Preset" to store the current
+                    setup.
+                  </div>
+                ) : (
+                  <ul className="space-y-2">
+                    {presets.map((p) => (
+                      <li
+                        key={p.id}
+                        className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/30 px-3 py-2"
+                      >
+                        <div className="min-w-0">
+                          <div className="text-sm text-white truncate">
+                            {p.name}
+                          </div>
+                          <div className="text-[10px] text-white/60 truncate">
+                            {p.layers.length} layer
+                            {p.layers.length === 1 ? "" : "s"}{" "}
+                            {(() => {
+                              const tc = summarizeTypeCounts(p.layers);
+                              return tc ? `• ${tc}` : "";
+                            })()}
+                          </div>
+                          <div className="text-[10px] text-white/50 truncate">
+                            {summarizeLayersCompact(p.layers)}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            className="px-2.5 py-1.5 btn-shape text-[11px] font-medium bg-teal-500/80 hover:bg-teal-500 text-white"
+                            onClick={() => {
+                              loadPreset(p.id);
+                              const newLayers = useAppStore.getState().layers;
+                              lastLoadedSnapshot.current = JSON.stringify(
+                                newLayers.map(
+                                  ({ id, isPlaying, ...rest }) => rest
+                                )
+                              );
+                              setLoadedPresetId(p.id);
+                              setPresetName(p.name);
+                              setShowPresetsModal(false);
+                            }}
+                          >
+                            Load
+                          </button>
+                          <button
+                            className="px-2.5 py-1.5 btn-shape text-[11px] font-medium bg-white/5 hover:bg-white/10 text-white/70 border border-white/10"
+                            onClick={() => {
+                              deletePreset(p.id);
+                              if (loadedPresetId === p.id)
+                                setLoadedPresetId(null);
+                            }}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          </aside>
+        </div>
+      )}
+
+      {/* Effects Library Drawer */}
+      {showEffectsLibrary && (
+        <div
+          className="fixed inset-0 z-50"
+          aria-labelledby="effects-library-title"
+        >
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setShowEffectsLibrary(false)}
+          />
+          {/* Panel */}
+          <aside
+            id="effects-library-panel"
+            className="absolute right-0 top-0 h-full w-[320px] sm:w-[360px] border-l border-white/10 bg-black/60 backdrop-blur-xl shadow-2xl"
+          >
+            <div className="h-full flex flex-col">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
+                <h3
+                  id="effects-library-title"
+                  className="text-sm font-medium text-white"
+                >
+                  Effects Library
+                </h3>
+                <button
+                  className="p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/10"
+                  aria-label="Close effects library"
+                  onClick={() => setShowEffectsLibrary(false)}
+                >
+                  <X size={16} />
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
+                {/* Target Layer Select */}
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                  <label className="block text-[11px] text-white/70 mb-1">
+                    Choose layer to add effect:
+                  </label>
+                  <div className="relative inline-block">
+                    <select
+                      value={targetLayerId || ""}
+                      onChange={(e) => setTargetLayerId(e.target.value || null)}
+                      className="bg-black/40 border border-white/15 rounded-md pl-2 pr-6 py-1 text-[11px] text-white/80 focus:outline-none focus:ring-1 focus:ring-teal-500/50 focus:border-teal-500/50 appearance-none cursor-pointer min-w-[180px]"
+                    >
+                      <option className="bg-slate-900" value="" disabled>
+                        Select a layer…
+                      </option>
+                      {layers.map((l, i) => (
+                        <option
+                          className="bg-slate-900"
+                          key={l.id}
+                          value={l.id}
+                        >
+                          Layer {i + 1} • {l.type}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="pointer-events-none absolute inset-y-0 right-1 flex items-center text-white/50">
+                      <ChevronDown size={14} />
+                    </span>
+                  </div>
+                </div>
+                {/* Noise Generator Card */}
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <div className="text-sm text-white font-medium">
+                        Noise Generator
+                      </div>
+                      <div className="text-[11px] text-white/60">
+                        White, Pink, and Brown noise
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <label className="block text-[11px] text-white/70">
+                      Type
+                    </label>
+                    <div className="relative inline-block">
+                      <select
+                        value={noiseType}
+                        onChange={(e) => {
+                          const t = e.target.value as NoiseType;
+                          setNoiseType(t);
+                          noiseHandleRef.current?.setType(t);
+                        }}
+                        className="bg-black/40 border border-white/15 rounded-md pl-2 pr-6 py-1 text-[11px] text-white/80 focus:outline-none focus:ring-1 focus:ring-teal-500/50 focus:border-teal-500/50 appearance-none cursor-pointer"
+                      >
+                        <option className="bg-slate-900" value="white">
+                          White
+                        </option>
+                        <option className="bg-slate-900" value="pink">
+                          Pink
+                        </option>
+                        <option className="bg-slate-900" value="brown">
+                          Brown
+                        </option>
+                      </select>
+                      <span className="pointer-events-none absolute inset-y-0 right-1 flex items-center text-white/50">
+                        <ChevronDown size={14} />
+                      </span>
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between text-[11px] text-white/60">
+                        <span>Gain</span>
+                        <span className="text-white/80 font-medium">
+                          {Math.round(noiseGain * 100)}%
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min={0}
+                        max={1}
+                        step={0.01}
+                        value={noiseGain}
+                        onChange={(e) => {
+                          const v = parseFloat(e.target.value);
+                          setNoiseGain(v);
+                          noiseHandleRef.current?.setGain(v);
+                        }}
+                        className="w-full appearance-none cursor-pointer"
+                      />
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between text-[11px] text-white/60">
+                        <span>Pan</span>
+                        <span className="text-white/80 font-medium">
+                          {noisePan === 0
+                            ? "C"
+                            : noisePan > 0
+                            ? `R ${Math.abs(noisePan).toFixed(2)}`
+                            : `L ${Math.abs(noisePan).toFixed(2)}`}
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min={-1}
+                        max={1}
+                        step={0.01}
+                        value={noisePan}
+                        onChange={(e) => {
+                          const v = parseFloat(e.target.value);
+                          setNoisePan(v);
+                          noiseHandleRef.current?.setPan(v);
+                        }}
+                        className="w-full appearance-none cursor-pointer"
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-1">
+                      <button
+                        onClick={() => {
+                          if (noiseHandleRef.current) {
+                            stopNoisePreview();
+                          } else {
+                            ensureNoisePreviewStarted();
+                          }
+                        }}
+                        className={`inline-flex items-center gap-2 px-3 py-1.5 btn-shape text-white text-xs font-medium transition-colors ${
+                          noiseHandleRef.current
+                            ? "bg-white/10 hover:bg-white/20"
+                            : "bg-teal-500/80 hover:bg-teal-500"
+                        }`}
+                      >
+                        {noiseHandleRef.current ? (
+                          <>
+                            <Square size={16} /> Stop
+                          </>
+                        ) : (
+                          <>
+                            <Play size={16} /> Preview
+                          </>
+                        )}
+                      </button>
+                      <button
+                        disabled={!targetLayerId}
+                        onClick={() => {
+                          if (!targetLayerId) return;
+                          const effect = {
+                            id: crypto.randomUUID(),
+                            kind: "noise" as const,
+                            type: noiseType,
+                            gain: noiseGain,
+                            pan: noisePan,
+                          };
+                          addLayerEffect(targetLayerId, effect);
+                          // notify engine about effects change
+                          const updated = useAppStore
+                            .getState()
+                            .layers.find((l) => l.id === targetLayerId);
+                          if (updated) {
+                            engines.current[targetLayerId]?.update({
+                              effects: updated.effects as any,
+                            });
+                          }
+                        }}
+                        className="inline-flex items-center gap-2 px-3 py-1.5 btn-shape bg-amber-500/80 hover:bg-amber-500 text-white text-xs font-medium transition-colors disabled:opacity-40"
+                      >
+                        <Plus size={16} /> Add to Layer
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Placeholder for future effects */}
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                  <div className="text-[11px] text-white/60">
+                    More effects coming soon…
+                  </div>
+                </div>
+              </div>
+            </div>
+          </aside>
         </div>
       )}
 

@@ -9,6 +9,86 @@
 				"$tsc"
 			],
 			"group": "build"
+		},
+		{
+			"label": "build:next",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"build"
+			],
+			"problemMatcher": [
+				"$tsc",
+				"$eslint - stylish"
+			],
+			"group": "build"
+		},
+		{
+			"label": "delete-settings-file",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-NonInteractive",
+				"-Command",
+				"Remove-Item -LiteralPath 'c:\\DEVELOPER-PROJECTS\\raiduix-neuratone\\app\\settings\\page.tsx' -Force"
+			],
+			"group": "build"
+		},
+		{
+			"label": "build:next",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"build"
+			],
+			"problemMatcher": [
+				"$tsc",
+				"$eslint - stylish"
+			],
+			"group": "build"
+		},
+		{
+			"label": "clean-next-cache",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-NonInteractive",
+				"-Command",
+				"if (Test-Path .next) { Remove-Item -Recurse -Force .next }"
+			],
+			"group": "build"
+		},
+		{
+			"label": "build:next",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"build"
+			],
+			"problemMatcher": [
+				"$tsc",
+				"$eslint - stylish"
+			],
+			"group": "build"
+		},
+		{
+			"label": "build:next-single",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"build"
+			],
+			"problemMatcher": [
+				"$tsc",
+				"$eslint - stylish"
+			],
+			"group": "build"
 		}
 	]
 }

@@ -1,7 +1,24 @@
 "use client";
 import { Howl } from "howler";
+import {
+  createNoiseNode,
+  type NoiseNodeHandle,
+  type NoiseType,
+} from "./effects";
 
 export type LayerType = "binaural" | "isochronic" | "ambient";
+
+export type LayerEffectKind = "noise";
+
+export interface NoiseEffect {
+  id: string;
+  kind: "noise";
+  type: NoiseType; // white | pink | brown
+  gain: number; // 0..1
+  pan: number; // -1..1
+}
+
+export type LayerEffect = NoiseEffect; // extendable
 export interface SoundLayer {
   id: string;
   type: LayerType;
@@ -13,6 +30,7 @@ export interface SoundLayer {
   pan: number;
   wave?: OscillatorType; // sine | square | sawtooth | triangle
   isPlaying: boolean;
+  effects?: LayerEffect[];
 }
 export interface EngineHandle {
   start: () => Promise<void>;
@@ -70,20 +88,72 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
   let leftGain: GainNode | null = null;
   let rightGain: GainNode | null = null;
   let analyserNode: AnalyserNode | null = null;
+  const effectHandles = new Map<string, NoiseNodeHandle>();
+  function computePair(base: number, beat: number) {
+    const safeBase = Math.max(1, base || 0);
+    const l = Math.max(1, safeBase - beat / 2);
+    const r = Math.max(1, safeBase + beat / 2);
+    return [l, r] as const;
+  }
+  async function reconcileEffects(effects?: LayerEffect[]) {
+    const list = effects || [];
+    const byId = new Map<string, LayerEffect>();
+    list.forEach((fx) => byId.set(fx.id, fx));
+    for (const [id, h] of effectHandles.entries()) {
+      if (!byId.has(id)) {
+        try {
+          h.disconnect();
+        } catch {}
+        try {
+          h.dispose();
+        } catch {}
+        effectHandles.delete(id);
+      }
+    }
+    const ctxLocal = ctx || getCtx();
+    if (!ctxLocal) return;
+    ctx = ctxLocal;
+    for (const fx of list) {
+      if (fx.kind === "noise") {
+        const existing = effectHandles.get(fx.id);
+        if (!existing) {
+          const handle = await createNoiseNode(ctxLocal, {
+            type: fx.type,
+            gain: fx.gain,
+            pan: fx.pan,
+          });
+          if (playing) handle.connect(ctxLocal.destination);
+          effectHandles.set(fx.id, handle);
+        } else {
+          existing.setType(fx.type);
+          existing.setGain(fx.gain);
+          existing.setPan(fx.pan);
+          if (playing) {
+            try {
+              existing.connect(ctxLocal.destination);
+            } catch {}
+          } else {
+            try {
+              existing.disconnect();
+            } catch {}
+          }
+        }
+      }
+    }
+  }
   async function ensure() {
     if (!tone) {
       tone = await loadTone();
       if (tone?.Oscillator && tone?.Merge) {
-        left = new tone.Oscillator(layer.baseFreq || 200, layer.wave || "sine");
-        right = new tone.Oscillator(
-          (layer.baseFreq || 200) + (layer.beatOffset || 0),
-          layer.wave || "sine"
-        );
+        const base = layer.baseFreq || 200;
+        const beat = layer.beatOffset || 0;
+        const [lf, rf] = computePair(base, beat);
+        left = new tone.Oscillator(lf, layer.wave || "sine");
+        right = new tone.Oscillator(rf, layer.wave || "sine");
         leftGainTone = new tone.Gain(1);
         rightGainTone = new tone.Gain(1);
         merger = new tone.Merge();
         volNode = new tone.Volume(tone.gainToDb(layer.volume));
-        // connect path
         left.connect(leftGainTone).connect(merger, 0, 0);
         right.connect(rightGainTone).connect(merger, 0, 1);
         analyserToneFft = new tone.Analyser("fft", 1024);
@@ -93,7 +163,7 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
           analyserToneFft,
           tone.Destination || tone.getDestination?.()
         );
-        volNode.connect?.(analyserToneWave); // tap waveform
+        volNode.connect?.(analyserToneWave);
         const applyPan = (p: number) => {
           const lp = p > 0 ? 1 - p : 1;
           const rp = p < 0 ? 1 + p : 1;
@@ -104,13 +174,12 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
         return;
       }
     }
-    // Tone already loaded but oscillators disposed previously
     if (tone?.Oscillator && tone?.Merge && !left) {
-      left = new tone.Oscillator(layer.baseFreq || 200, layer.wave || "sine");
-      right = new tone.Oscillator(
-        (layer.baseFreq || 200) + (layer.beatOffset || 0),
-        layer.wave || "sine"
-      );
+      const base = Math.max(1, layer.baseFreq || 200);
+      const beat = layer.beatOffset || 0;
+      const [lf, rf] = computePair(base, beat);
+      left = new tone.Oscillator(lf, layer.wave || "sine");
+      right = new tone.Oscillator(rf, layer.wave || "sine");
       leftGainTone = new tone.Gain(1);
       rightGainTone = new tone.Gain(1);
       merger = new tone.Merge();
@@ -139,8 +208,11 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
       rOsc = ctx.createOscillator();
       lOsc.type = layer.wave || "sine";
       rOsc.type = layer.wave || "sine";
-      lOsc.frequency.value = layer.baseFreq || 200;
-      rOsc.frequency.value = (layer.baseFreq || 200) + (layer.beatOffset || 0);
+      const base = Math.max(1, layer.baseFreq || 200);
+      const beat = layer.beatOffset || 0;
+      const [lf, rf] = computePair(base, beat);
+      lOsc.frequency.value = lf;
+      rOsc.frequency.value = rf;
       leftGain = ctx.createGain();
       rightGain = ctx.createGain();
       leftGain.gain.value = 1;
@@ -148,7 +220,6 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
       gain = ctx.createGain();
       gain.gain.value = layer.volume;
       mergerNode = ctx.createChannelMerger(2);
-      // connect with independent channel gains for proper binaural separation
       lOsc.connect(leftGain).connect(mergerNode, 0, 0);
       rOsc.connect(rightGain).connect(mergerNode, 0, 1);
       analyserNode = ctx.createAnalyser();
@@ -168,17 +239,25 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
       await ensure();
       if (playing) return;
       if (left && right) {
+        // Ensure the shared Web Audio context (used for effects) is running
+        try {
+          const rctx = getCtx();
+          if (rctx) {
+            await rctx.resume();
+            ctx = rctx;
+          }
+        } catch {}
         await tone.start?.();
         left.start();
         right.start();
         playing = true;
+        await reconcileEffects(layer.effects);
       } else if (lOsc && rOsc && ctx) {
         ctx.resume();
         try {
           lOsc.start();
           rOsc.start();
         } catch (e) {
-          // if already started recreate oscillators
           if (e instanceof DOMException) {
             lOsc.disconnect();
             rOsc.disconnect();
@@ -198,6 +277,7 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
           }
         }
         playing = true;
+        await reconcileEffects(layer.effects);
       }
     },
     stop: () => {
@@ -208,14 +288,17 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
       } else if (lOsc && rOsc) {
         lOsc.stop();
         rOsc.stop();
-        // mark for recreation next start
         lOsc = null;
         rOsc = null;
+      }
+      for (const h of effectHandles.values()) {
+        try {
+          h.disconnect();
+        } catch {}
       }
       playing = false;
     },
     update: (l) => {
-      // Persist intended values
       if (l.baseFreq !== undefined) layer.baseFreq = l.baseFreq;
       if (l.beatOffset !== undefined) layer.beatOffset = l.beatOffset;
       if (l.volume !== undefined) layer.volume = l.volume;
@@ -234,16 +317,13 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
           rightGain.gain.value = rp;
         }
       };
-      // Tone path
       if (left && right) {
-        if (l.baseFreq !== undefined) {
-          left.frequency.value = layer.baseFreq || 200;
-          right.frequency.value =
-            (layer.baseFreq || 200) + (layer.beatOffset || 0);
-        }
-        if (l.beatOffset !== undefined) {
-          right.frequency.value =
-            (layer.baseFreq || 200) + (layer.beatOffset || 0);
+        if (l.baseFreq !== undefined || l.beatOffset !== undefined) {
+          const base = Math.max(1, layer.baseFreq || 200);
+          const beat = layer.beatOffset || 0;
+          const [lf, rf] = computePair(base, beat);
+          left.frequency.value = lf;
+          right.frequency.value = rf;
         }
         if (l.volume !== undefined && volNode) {
           volNode.volume.value = tone.gainToDb(layer.volume);
@@ -258,14 +338,11 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
             left.dispose?.();
             right.dispose?.();
           } catch {}
-          left = new tone.Oscillator(
-            layer.baseFreq || 200,
-            layer.wave || "sine"
-          );
-          right = new tone.Oscillator(
-            (layer.baseFreq || 200) + (layer.beatOffset || 0),
-            layer.wave || "sine"
-          );
+          const base = Math.max(1, layer.baseFreq || 200);
+          const beat = layer.beatOffset || 0;
+          const [lf, rf] = computePair(base, beat);
+          left = new tone.Oscillator(lf, layer.wave || "sine");
+          right = new tone.Oscillator(rf, layer.wave || "sine");
           left.connect(leftGainTone).connect(merger, 0, 0);
           right.connect(rightGainTone).connect(merger, 0, 1);
           if (playing) {
@@ -275,18 +352,13 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
             } catch {}
           }
         }
-        return;
-      }
-      // Web Audio path
-      if (lOsc && rOsc) {
-        if (l.baseFreq !== undefined) {
-          lOsc.frequency.value = layer.baseFreq || 200;
-          rOsc.frequency.value =
-            (layer.baseFreq || 200) + (layer.beatOffset || 0);
-        }
-        if (l.beatOffset !== undefined) {
-          rOsc.frequency.value =
-            (layer.baseFreq || 200) + (layer.beatOffset || 0);
+      } else if (lOsc && rOsc) {
+        if (l.baseFreq !== undefined || l.beatOffset !== undefined) {
+          const base = Math.max(1, layer.baseFreq || 200);
+          const beat = layer.beatOffset || 0;
+          const [lf, rf] = computePair(base, beat);
+          lOsc.frequency.value = lf;
+          rOsc.frequency.value = rf;
         }
         if (l.volume !== undefined && gain) gain.gain.value = layer.volume;
         if (l.pan !== undefined) applyPanVal(layer.pan || 0);
@@ -301,9 +373,11 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
           rOsc = ctx.createOscillator();
           lOsc.type = layer.wave || "sine";
           rOsc.type = layer.wave || "sine";
-          lOsc.frequency.value = layer.baseFreq || 200;
-          rOsc.frequency.value =
-            (layer.baseFreq || 200) + (layer.beatOffset || 0);
+          const base = layer.baseFreq || 200;
+          const beat = layer.beatOffset || 0;
+          const [lf, rf] = computePair(base, beat);
+          lOsc.frequency.value = lf;
+          rOsc.frequency.value = rf;
           if (!leftGain) {
             leftGain = ctx.createGain();
             leftGain.gain.value = 1;
@@ -335,6 +409,10 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
           }
         }
       }
+      if ((l as any).effects !== undefined) {
+        (layer as any).effects = (l as any).effects as LayerEffect[];
+        reconcileEffects((l as any).effects as LayerEffect[]);
+      }
     },
     dispose: () => {
       try {
@@ -354,24 +432,29 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
       analyserNode?.disconnect();
       leftGain?.disconnect();
       rightGain?.disconnect();
+      for (const h of effectHandles.values()) {
+        try {
+          h.disconnect();
+        } catch {}
+        try {
+          h.dispose();
+        } catch {}
+      }
+      effectHandles.clear();
     },
     getAnalyser: () => analyserNode || null,
     getWaveformData: (arr) => {
       if (analyserNode) {
-        if (arr.length !== analyserNode.fftSize) {
-          // time domain size is fftSize
-        }
         (analyserNode as any).getByteTimeDomainData(arr as any);
         return;
       }
       if (analyserToneWave) {
-        const vals = analyserToneWave.getValue(); // Float32Array -1..1
+        const vals = analyserToneWave.getValue();
         const len = Math.min(arr.length, vals.length);
         for (let i = 0; i < len; i++) {
-          const v = (vals[i] + 1) * 0.5; // 0..1
+          const v = (vals[i] + 1) * 0.5;
           arr[i] = Math.max(0, Math.min(255, Math.floor(v * 255)));
         }
-        return;
       }
     },
     getFrequencyData: (arr) => {
@@ -380,7 +463,7 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
         return;
       }
       if (analyserToneFft) {
-        const vals = analyserToneFft.getValue(); // Float32Array (dB)
+        const vals = analyserToneFft.getValue();
         const min = -100,
           max = 0;
         const len = Math.min(arr.length, vals.length);
@@ -409,12 +492,61 @@ export function createIsochronic(layer: SoundLayer): EngineHandle {
   let gain: GainNode | null = null;
   let stereo: StereoPannerNode | null = null;
   let analyserNode: AnalyserNode | null = null;
+  const effectHandles = new Map<string, NoiseNodeHandle>();
+  async function reconcileEffects(effects?: LayerEffect[]) {
+    const list = effects || [];
+    const byId = new Map<string, LayerEffect>();
+    list.forEach((fx) => byId.set(fx.id, fx));
+    for (const [id, h] of effectHandles.entries()) {
+      if (!byId.has(id)) {
+        try {
+          h.disconnect();
+        } catch {}
+        try {
+          h.dispose();
+        } catch {}
+        effectHandles.delete(id);
+      }
+    }
+    const ctxLocal = ctx || getCtx();
+    if (!ctxLocal) return;
+    ctx = ctxLocal;
+    for (const fx of list) {
+      if (fx.kind === "noise") {
+        const existing = effectHandles.get(fx.id);
+        if (!existing) {
+          const handle = await createNoiseNode(ctxLocal, {
+            type: fx.type,
+            gain: fx.gain,
+            pan: fx.pan,
+          });
+          if (playing) handle.connect(ctxLocal.destination);
+          effectHandles.set(fx.id, handle);
+        } else {
+          existing.setType(fx.type);
+          existing.setGain(fx.gain);
+          existing.setPan(fx.pan);
+          if (playing) {
+            try {
+              existing.connect(ctxLocal.destination);
+            } catch {}
+          } else {
+            try {
+              existing.disconnect();
+            } catch {}
+          }
+        }
+      }
+    }
+  }
   async function ensure() {
     if (!tone) {
       tone = await loadTone();
       if (tone?.Oscillator && tone?.AmplitudeEnvelope) {
-        // Tone-based: oscillator frequency is the carrier (baseFreq)
-        osc = new tone.Oscillator(layer.baseFreq || 200, layer.wave || "sine");
+        osc = new tone.Oscillator(
+          Math.max(1, layer.baseFreq || 200),
+          layer.wave || "sine"
+        );
         env = new tone.AmplitudeEnvelope({
           attack: 0.01,
           decay: 0.01,
@@ -439,7 +571,7 @@ export function createIsochronic(layer: SoundLayer): EngineHandle {
     if (!carrier && ctx) {
       carrier = ctx.createOscillator();
       carrier.type = layer.wave || "sine";
-      carrier.frequency.value = layer.baseFreq || 200;
+      carrier.frequency.value = Math.max(1, layer.baseFreq || 200);
       gate = ctx.createGain();
       gate.gain.value = 0;
       gain = ctx.createGain();
@@ -461,6 +593,14 @@ export function createIsochronic(layer: SoundLayer): EngineHandle {
       await ensure();
       if (playing) return;
       if (osc) {
+        // Ensure the shared Web Audio context (used for effects) is running
+        try {
+          const rctx = getCtx();
+          if (rctx) {
+            await rctx.resume();
+            ctx = rctx;
+          }
+        } catch {}
         await tone.start?.();
         osc.start();
         playing = true;
@@ -470,12 +610,14 @@ export function createIsochronic(layer: SoundLayer): EngineHandle {
             1000 / Math.max(1, layer.pulseFreq || 10)
           );
         }
+        await reconcileEffects(layer.effects);
       } else if (carrier && gate && ctx) {
         ctx.resume();
         carrier.start();
         playing = true;
         if (interval === null) {
           interval = window.setInterval(() => {
+            if (!ctx) return;
             gate!.gain.setValueAtTime(1, ctx.currentTime);
             gate!.gain.exponentialRampToValueAtTime(
               0.0001,
@@ -483,6 +625,7 @@ export function createIsochronic(layer: SoundLayer): EngineHandle {
             );
           }, 1000 / Math.max(1, layer.pulseFreq || 10));
         }
+        await reconcileEffects(layer.effects);
       }
     },
     stop: () => {
@@ -499,10 +642,14 @@ export function createIsochronic(layer: SoundLayer): EngineHandle {
         clearInterval(interval);
         interval = null;
       }
+      for (const h of effectHandles.values()) {
+        try {
+          h.disconnect();
+        } catch {}
+      }
       playing = false;
     },
     update: (l) => {
-      // Persist values regardless of play state
       if (l.pulseFreq !== undefined) layer.pulseFreq = l.pulseFreq;
       if (l.baseFreq !== undefined) layer.baseFreq = l.baseFreq;
       if (l.volume !== undefined) layer.volume = l.volume;
@@ -511,7 +658,10 @@ export function createIsochronic(layer: SoundLayer): EngineHandle {
       if (l.wave !== undefined) layer.wave = l.wave;
       if (osc) {
         if (l.baseFreq !== undefined) {
-          osc.frequency.value = layer.baseFreq || osc.frequency.value;
+          osc.frequency.value = Math.max(
+            1,
+            layer.baseFreq || osc.frequency.value
+          );
         }
         if (l.pulseFreq !== undefined) {
           if (interval) {
@@ -531,11 +681,12 @@ export function createIsochronic(layer: SoundLayer): EngineHandle {
         if (waveChanged && osc) {
           osc.type = layer.wave || osc.type;
         }
-        return;
-      }
-      if (carrier && gate) {
+      } else if (carrier && gate) {
         if (l.baseFreq !== undefined && carrier) {
-          carrier.frequency.value = layer.baseFreq || carrier.frequency.value;
+          carrier.frequency.value = Math.max(
+            1,
+            layer.baseFreq || carrier.frequency.value
+          );
         }
         if (l.pulseFreq !== undefined) {
           if (interval) {
@@ -563,8 +714,7 @@ export function createIsochronic(layer: SoundLayer): EngineHandle {
           carrier.disconnect();
           carrier = ctx.createOscillator();
           carrier.type = layer.wave || "sine";
-          carrier.frequency.value = layer.baseFreq || 200;
-          // Reconnect chain
+          carrier.frequency.value = Math.max(1, layer.baseFreq || 200);
           if (!gate) {
             gate = ctx.createGain();
             gate.gain.value = 0;
@@ -592,6 +742,10 @@ export function createIsochronic(layer: SoundLayer): EngineHandle {
           }
         }
       }
+      if ((l as any).effects !== undefined) {
+        (layer as any).effects = (l as any).effects as LayerEffect[];
+        reconcileEffects((l as any).effects as LayerEffect[]);
+      }
     },
     dispose: () => {
       if (osc) {
@@ -603,6 +757,15 @@ export function createIsochronic(layer: SoundLayer): EngineHandle {
       if (carrier) {
         carrier.disconnect();
       }
+      for (const h of effectHandles.values()) {
+        try {
+          h.disconnect();
+        } catch {}
+        try {
+          h.dispose();
+        } catch {}
+      }
+      effectHandles.clear();
       if (interval) clearInterval(interval);
     },
     getAnalyser: () => analyserNode || null,

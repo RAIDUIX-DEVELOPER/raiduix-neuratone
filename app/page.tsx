@@ -238,6 +238,34 @@ export default function Home() {
             <Reveal delay={0.3} className="h-full">
               <div className="card spotlight rounded-lg p-6 h-full flex flex-col">
                 <h3 className="text-base font-semibold text-teal-300 mb-2">
+                  White, Pink, and Brown Noise
+                </h3>
+                <p className="text-sm text-slate-300/80 mb-3">
+                  Add broadband noise as an effect for gentle masking or
+                  texture. White has a flat spectrum; Pink rolls off ~3 dB/oct;
+                  Brown rolls off ~6 dB/oct for a deeper tone.
+                </p>
+                <ul className="text-xs space-y-1 text-slate-300/70 list-disc list-inside mb-4">
+                  <li>Use low gain and adjust slowly</li>
+                  <li>Pan noise to create space with tonal layers</li>
+                  <li>Great for focus and sleep masking</li>
+                </ul>
+                <div className="mt-auto flex gap-2">
+                  <Link
+                    href={{ pathname: "/app" }}
+                    prefetch
+                    className="spotlight btn-shape text-[12px] px-3 py-1.5 ring-1 ring-white/5 hover:ring-teal-400/30 text-slate-200/85 hover:text-teal-100 bg-[#0b1220]/70"
+                    data-analytics-event="learn_cta_click"
+                    data-analytics-label="open_effects_noise"
+                  >
+                    Try noise effect
+                  </Link>
+                </div>
+              </div>
+            </Reveal>
+            <Reveal delay={0.4} className="h-full">
+              <div className="card spotlight rounded-lg p-6 h-full flex flex-col">
+                <h3 className="text-base font-semibold text-teal-300 mb-2">
                   Safety & best practices
                 </h3>
                 <p className="text-sm text-slate-300/80 mb-3">
@@ -363,6 +391,15 @@ export default function Home() {
                     data-analytics-label="preset_sleep"
                   >
                     Sleep
+                  </Link>
+                  <Link
+                    href={{ pathname: "/app" }}
+                    prefetch
+                    className="spotlight btn-shape text-[12px] px-3 py-1.5 ring-1 ring-white/5 hover:ring-teal-400/30 text-slate-200/85 hover:text-teal-100 bg-[#0b1220]/70"
+                    data-analytics-event="faq_cta_click"
+                    data-analytics-label="effects_noise"
+                  >
+                    Noise effect
                   </Link>
                 </div>
               </div>

@@ -1,7 +1,11 @@
 "use client";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { SoundLayer } from "./audioEngine";
+import {
+  SoundLayer,
+  type LayerEffect,
+  type LayerEffectKind,
+} from "./audioEngine";
 
 export interface Preset {
   id: string;
@@ -16,6 +20,8 @@ interface AppState {
   addLayer: (l?: Partial<Omit<SoundLayer, "id" | "isPlaying">>) => void;
   updateLayer: (id: string, patch: Partial<SoundLayer>) => void;
   removeLayer: (id: string) => void;
+  addLayerEffect: (id: string, effect: LayerEffect) => void;
+  removeLayerEffect: (id: string, effectId: string) => void;
   savePreset: (name: string) => void;
   loadPreset: (id: string) => void;
   deletePreset: (id: string) => void;
@@ -177,6 +183,7 @@ export const useAppStore = create<AppState>()(
           pan: 0,
           wave: "sine",
           isPlaying: false,
+          effects: [],
         },
         {
           id: "l2",
@@ -187,6 +194,7 @@ export const useAppStore = create<AppState>()(
           pan: 0,
           wave: "sine",
           isPlaying: false,
+          effects: [],
         },
         {
           id: "l3",
@@ -197,6 +205,7 @@ export const useAppStore = create<AppState>()(
           pan: 0,
           wave: "sine",
           isPlaying: false,
+          effects: [],
         },
         {
           id: "l4",
@@ -207,6 +216,7 @@ export const useAppStore = create<AppState>()(
           pan: 0,
           wave: "sine",
           isPlaying: false,
+          effects: [],
         },
         {
           id: "l5",
@@ -217,6 +227,7 @@ export const useAppStore = create<AppState>()(
           pan: 0,
           wave: "sine",
           isPlaying: false,
+          effects: [],
         },
       ],
       presets: defaultPresets,
@@ -233,6 +244,7 @@ export const useAppStore = create<AppState>()(
             pan: l.pan ?? 0,
             wave: l.wave ?? "sine",
             isPlaying: false,
+            effects: [],
           };
           if (type === "isochronic") {
             base.pulseFreq = l.pulseFreq ?? 10;
@@ -256,6 +268,25 @@ export const useAppStore = create<AppState>()(
             l.id === id ? { ...l, ...patch } : l
           ),
         })),
+      addLayerEffect: (id, effect) =>
+        set((state) => ({
+          ...state,
+          layers: state.layers.map((l) =>
+            l.id === id ? { ...l, effects: [...(l.effects || []), effect] } : l
+          ),
+        })),
+      removeLayerEffect: (id, effectId) =>
+        set((state) => ({
+          ...state,
+          layers: state.layers.map((l) =>
+            l.id === id
+              ? {
+                  ...l,
+                  effects: (l.effects || []).filter((e) => e.id !== effectId),
+                }
+              : l
+          ),
+        })),
       resetLayer: (id) =>
         set((state) => ({
           ...state,
@@ -270,6 +301,7 @@ export const useAppStore = create<AppState>()(
                   pan: 0,
                   wave: "sine",
                   isPlaying: false,
+                  effects: [],
                 }
               : l
           ),
@@ -286,6 +318,7 @@ export const useAppStore = create<AppState>()(
             pan: 0,
             wave: "sine",
             isPlaying: false,
+            effects: [],
           })),
         })),
       deletePreset: (id) =>
