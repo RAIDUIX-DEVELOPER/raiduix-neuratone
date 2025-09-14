@@ -17,7 +17,6 @@ export default function HeroVisual({ className }: Props) {
   const [useVideo, setUseVideo] = useState(true);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
-  const [gifBust, setGifBust] = useState(0);
 
   useEffect(() => {
     if (!useVideo || prefersReducedMotion) return;
@@ -35,12 +34,7 @@ export default function HeroVisual({ className }: Props) {
     return () => v.removeEventListener("error", onError);
   }, [useVideo, prefersReducedMotion]);
 
-  // If we fall back to GIF, periodically reset the src to simulate infinite loop
-  useEffect(() => {
-    if (useVideo) return;
-    const id = window.setInterval(() => setGifBust((n) => n + 1), 15000);
-    return () => window.clearInterval(id);
-  }, [useVideo]);
+  // No GIF fallback cycling needed now that we use MP4
 
   if (useVideo && !prefersReducedMotion) {
     return (
@@ -51,11 +45,11 @@ export default function HeroVisual({ className }: Props) {
         muted
         loop
         playsInline
-        preload="auto"
-        poster="/intro-visual.gif"
+        controls
+        preload="metadata"
+        aria-label="Cinematic intro video"
       >
-        <source src="/intro-visual.webm" type="video/webm" />
-        <source src="/intro-visual.mp4" type="video/mp4" />
+        <source src="/hero-intro-video.mp4" type="video/mp4" />
       </video>
     );
   }
@@ -63,8 +57,8 @@ export default function HeroVisual({ className }: Props) {
   return (
     <img
       ref={imgRef}
-      src={`/intro-visual.gif?b=${gifBust}`}
-      alt="Preview of the NeuraTone mixer interface"
+      src="/window.svg"
+      alt="NeuraTone visual placeholder"
       className={className}
       decoding="async"
     />
