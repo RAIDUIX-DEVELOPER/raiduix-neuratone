@@ -11,10 +11,20 @@ import {
   Pencil,
   ChevronDown,
   X,
+  Shuffle,
+  Eye,
+  EyeOff,
+  Volume2,
+  VolumeX,
+  Maximize2,
+  Minimize2,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { SoundLayer, createEngine, type LayerEffect } from "@/lib/audioEngine";
 import OrbVisualizer from "./OrbVisualizer";
+import PixabayBackgroundPanel, {
+  type SelectPayload as PixabaySelect,
+} from "./PixabayBackgroundPanel";
 import {
   createNoiseNode,
   type NoiseType,
@@ -74,6 +84,7 @@ export default function Mixer() {
   const [targetLayerId, setTargetLayerId] = useState<string | null>(null);
   const noiseCtxRef = useRef<AudioContext | null>(null);
   const noiseHandleRef = useRef<NoiseNodeHandle | null>(null);
+  // ...removed Pixabay audio search state (deprecated)
   const [saveAsName, setSaveAsName] = useState("");
   const [loadedPresetId, setLoadedPresetId] = useState<string | null>(null);
   const lastLoadedSnapshot = useRef<string>("[]");
@@ -82,6 +93,120 @@ export default function Mixer() {
     setExpanded((m) => ({ ...m, [id]: !m[id] }));
   const activeCount = layers.filter((l) => l.isPlaying).length;
   const didAutoloadRef = useRef(false);
+  // Background picker UI state
+  const [bgMedia, setBgMedia] = useState<null | {
+    kind: "image" | "video";
+    src: string;
+  }>(null);
+  const [showBgPanel, setShowBgPanel] = useState(false);
+  const [bgHidden, setBgHidden] = useState(false);
+  const [showVisualizer, setShowVisualizer] = useState(true);
+  const bgVideoRef = useRef<HTMLVideoElement | null>(null);
+  const [videoMuted, setVideoMuted] = useState(true);
+  const fsContainerRef = useRef<HTMLDivElement | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Keep video element's mute state in sync and handle play/pause
+  useEffect(() => {
+    const v = bgVideoRef.current;
+    if (v) v.muted = videoMuted;
+  }, [videoMuted]);
+  useEffect(() => {
+    const v = bgVideoRef.current;
+    if (!v) return;
+    if (bgHidden) {
+      try {
+        v.pause();
+      } catch {}
+    } else if (!videoMuted) {
+      v.play().catch(() => {});
+    }
+  }, [bgHidden, videoMuted]);
+
+  // Fullscreen state sync
+  useEffect(() => {
+    const onFsChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", onFsChange);
+    return () => document.removeEventListener("fullscreenchange", onFsChange);
+  }, []);
+
+  async function toggleFullscreen() {
+    try {
+      if (!document.fullscreenElement) {
+        await fsContainerRef.current?.requestFullscreen();
+      } else {
+        await document.exitFullscreen();
+      }
+    } catch (e) {
+      console.warn("Fullscreen toggle failed", e);
+    }
+  }
+
+  async function randomizeBackground(kind?: "images" | "videos") {
+    try {
+      const imageChips = [
+        "space",
+        "forest",
+        "ocean",
+        "mountains",
+        "city",
+        "abstract",
+        "nebula",
+        "sunset",
+      ];
+      const videoChips = [
+        "space",
+        "waves",
+        "clouds",
+        "rain",
+        "city night",
+        "stars",
+        "aurora",
+        "timelapse",
+      ];
+      const selectedKind = kind || (Math.random() < 0.5 ? "images" : "videos");
+      const term = (selectedKind === "images" ? imageChips : videoChips)[
+        Math.floor(
+          Math.random() *
+            (selectedKind === "images" ? imageChips.length : videoChips.length)
+        )
+      ];
+      const endpoint =
+        selectedKind === "images"
+          ? "/api/pixabay/images"
+          : "/api/pixabay/videos";
+      const url = new URL(endpoint, window.location.origin);
+      url.searchParams.set("q", term);
+      url.searchParams.set("per_page", "50");
+      const r = await fetch(url.toString());
+      const data = await r.json();
+      const hits: any[] = Array.isArray(data?.hits) ? data.hits : [];
+      if (!hits.length) return;
+      const hit = hits[Math.floor(Math.random() * hits.length)];
+      if (selectedKind === "images") {
+        const src = hit.largeImageURL || hit.webformatURL || hit.previewURL;
+        if (src) {
+          setBgMedia({ kind: "image", src });
+          setBgHidden(false);
+        }
+      } else {
+        const videos = hit.videos || {};
+        const src =
+          videos.medium?.url ||
+          videos.small?.url ||
+          videos.large?.url ||
+          videos.tiny?.url;
+        if (src) {
+          setBgMedia({ kind: "video", src });
+          setBgHidden(false);
+        }
+      }
+    } catch (e) {
+      console.warn("Randomize background failed", e);
+    }
+  }
+
+  // ...removed Pixabay audio search function (deprecated)
 
   // Helpers: preset summaries for modal cards
   const uniquePresetName = (base: string) => {
@@ -533,7 +658,8 @@ export default function Mixer() {
           {/* Left: Orb (75vw, 100vh) */}
           <div className="relative w-full h-[50vh] lg:h-full">
             <div
-              className="relative h-full rounded-2xl overflow-hidden"
+              ref={fsContainerRef}
+              className="relative h-full overflow-hidden"
               style={{
                 backgroundColor: "rgba(0,0,0,0.15)",
                 backgroundImage:
@@ -542,8 +668,35 @@ export default function Mixer() {
                 backgroundPosition: "0 0, 11px 11px",
               }}
             >
+              {/* Background media rendered behind Orb */}
+              {!bgHidden && bgMedia?.kind === "image" && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={bgMedia.src}
+                  alt="Background"
+                  className="absolute inset-0 w-full h-full object-cover z-0"
+                  style={{ filter: "brightness(0.6)", pointerEvents: "none" }}
+                />
+              )}
+              {!bgHidden && bgMedia?.kind === "video" && (
+                <video
+                  ref={bgVideoRef}
+                  src={bgMedia.src}
+                  autoPlay
+                  muted={videoMuted}
+                  loop
+                  playsInline
+                  onLoadedMetadata={() => {
+                    if (!videoMuted && !bgHidden) {
+                      bgVideoRef.current?.play().catch(() => {});
+                    }
+                  }}
+                  className="absolute inset-0 w-full h-full object-cover z-0"
+                  style={{ filter: "brightness(0.6)", pointerEvents: "none" }}
+                />
+              )}
               {/* Subtle top-left title overlay */}
-              <div className="pointer-events-none absolute left-4 right-4 top-3 flex items-center gap-3 text-white/80">
+              <div className="absolute left-4 right-4 top-3 flex items-center gap-3 text-white/80 z-20 pointer-events-auto">
                 <div className="text-lg font-medium tracking-wide text-white/90">
                   Neural Mixer
                 </div>
@@ -551,11 +704,107 @@ export default function Mixer() {
                 <div className="text-xs uppercase tracking-wider text-teal-300/90">
                   {activeCount}/{layers.length} layers active
                 </div>
+                <div className="ml-auto flex items-center gap-2 pointer-events-auto">
+                  <button
+                    onClick={() => setShowBgPanel((v) => !v)}
+                    className="px-2.5 py-1.5 rounded-md bg-white/10 hover:bg-white/15 text-white text-xs border border-white/15"
+                    aria-label="Change background"
+                    title="Change background"
+                  >
+                    Change background
+                  </button>
+                  <button
+                    onClick={() => randomizeBackground()}
+                    className="px-2.5 py-1.5 rounded-md bg-white/10 hover:bg-white/15 text-white text-xs border border-white/15 inline-flex items-center gap-1"
+                    aria-label="Randomize background"
+                    title="Randomize background"
+                  >
+                    <Shuffle size={14} /> Random
+                  </button>
+                  <button
+                    onClick={() => setBgHidden((v) => !v)}
+                    className="px-2.5 py-1.5 rounded-md bg-white/10 hover:bg-white/15 text-white text-xs border border-white/15 inline-flex items-center gap-1"
+                    aria-label="Toggle background visibility"
+                    title={bgHidden ? "Show background" : "Hide background"}
+                  >
+                    {bgHidden ? <Eye size={14} /> : <EyeOff size={14} />} BG
+                  </button>
+                  <button
+                    onClick={() => setShowVisualizer((v) => !v)}
+                    className="px-2.5 py-1.5 rounded-md bg-white/10 hover:bg-white/15 text-white text-xs border border-white/15 inline-flex items-center gap-1"
+                    aria-label="Toggle mixer visualizer"
+                    title={
+                      showVisualizer ? "Hide visualizer" : "Show visualizer"
+                    }
+                  >
+                    {showVisualizer ? <EyeOff size={14} /> : <Eye size={14} />}{" "}
+                    Mixer
+                  </button>
+                  <button
+                    onClick={toggleFullscreen}
+                    className="px-2.5 py-1.5 rounded-md bg-white/10 hover:bg-white/15 text-white text-xs border border-white/15 inline-flex items-center gap-1"
+                    aria-label={
+                      isFullscreen ? "Exit fullscreen" : "Enter fullscreen"
+                    }
+                    title={
+                      isFullscreen ? "Exit fullscreen" : "Enter fullscreen"
+                    }
+                  >
+                    {isFullscreen ? (
+                      <Minimize2 size={14} />
+                    ) : (
+                      <Maximize2 size={14} />
+                    )}{" "}
+                    Fullscreen
+                  </button>
+                  {bgMedia?.kind === "video" && (
+                    <button
+                      onClick={() => {
+                        setVideoMuted((m) => !m);
+                        // On unmute, attempt to start playback via user gesture
+                        if (videoMuted) {
+                          setTimeout(
+                            () => bgVideoRef.current?.play().catch(() => {}),
+                            0
+                          );
+                        }
+                      }}
+                      className="px-2.5 py-1.5 rounded-md bg-white/10 hover:bg-white/15 text-white text-xs border border-white/15 inline-flex items-center gap-1"
+                      aria-label={
+                        videoMuted
+                          ? "Unmute background video"
+                          : "Mute background video"
+                      }
+                      title={videoMuted ? "Unmute video" : "Mute video"}
+                    >
+                      {videoMuted ? (
+                        <VolumeX size={14} />
+                      ) : (
+                        <Volume2 size={14} />
+                      )}{" "}
+                      Audio
+                    </button>
+                  )}
+                </div>
               </div>
 
-              <OrbVisualizer
-                getEngines={() => layers.map((l) => engines.current[l.id])}
-                fit
+              {showVisualizer && (
+                <div className="absolute inset-0 z-10">
+                  <OrbVisualizer
+                    getEngines={() => layers.map((l) => engines.current[l.id])}
+                    fit
+                  />
+                </div>
+              )}
+
+              {/* Pixabay library panel mounted inside mixer container */}
+              <PixabayBackgroundPanel
+                visible={showBgPanel}
+                onClose={() => setShowBgPanel(false)}
+                onSelect={(p: PixabaySelect) => {
+                  setBgMedia({ kind: p.kind, src: p.src });
+                  setShowBgPanel(false);
+                }}
               />
             </div>
           </div>
@@ -1642,6 +1891,8 @@ export default function Mixer() {
                     </div>
                   </div>
                 </div>
+
+                {/* Removed: Pixabay Audio Search (deprecated) */}
 
                 {/* Placeholder for future effects */}
                 <div className="rounded-xl border border-white/10 bg-white/5 p-3">

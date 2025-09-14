@@ -8,6 +8,7 @@ import BreadcrumbsJsonLd from "./ui/BreadcrumbsJsonLd";
 import AnalyticsEvents from "./ui/AnalyticsEvents";
 import SiteHeader from "./ui/SiteHeader";
 import ScrollToTopButton from "./ui/ScrollToTopButton";
+import DisableContextMenu from "./ui/DisableContextMenu";
 
 const fontSans = Inter({
   variable: "--font-sans",
@@ -101,6 +102,8 @@ export default function RootLayout({
         <RouteLoadingOverlay />
         {/* Global delegated analytics for click events */}
         <AnalyticsEvents />
+        {/* Disable right-click context menu globally */}
+        <DisableContextMenu />
         <SiteHeader />
         {children}
         <ScrollToTopButton />
