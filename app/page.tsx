@@ -26,7 +26,7 @@ export default function Home() {
       <MinimalCinematicHero />
 
       {/* Content Section */}
-      <section className="content-section px-6 min-h-screen flex items-center relative z-20">
+      <section className="content-section px-6 min-h-screen flex items-start md:items-center relative z-20 pt-12 sm:pt-16 md:pt-24">
         <div className="max-w-5xl mx-auto">
           <Reveal>
             <h2 className="text-center text-2xl font-semibold tracking-tight text-slate-200 mb-16">

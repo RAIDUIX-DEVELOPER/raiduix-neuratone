@@ -5,10 +5,11 @@ import {
   type NoiseNodeHandle,
   type NoiseType,
 } from "./effects";
+import { getMasterBus } from "./audioBus";
 
 export type LayerType = "binaural" | "isochronic" | "ambient";
 
-export type LayerEffectKind = "noise";
+export type LayerEffectKind = "noise" | "automation";
 
 export interface NoiseEffect {
   id: string;
@@ -16,9 +17,21 @@ export interface NoiseEffect {
   type: NoiseType; // white | pink | brown
   gain: number; // 0..1
   pan: number; // -1..1
+  lpfHz?: number; // 20..20000
+  autopanHz?: number; // 0..5
+  autopanDepth?: number; // 0..1
 }
 
-export type LayerEffect = NoiseEffect; // extendable
+export interface ParamAutomationEffect {
+  id: string;
+  kind: "automation";
+  target: "beatOffset" | "pulseFreq" | "volume" | "pan";
+  from: number;
+  to: number;
+  durationSec: number; // seconds
+}
+
+export type LayerEffect = NoiseEffect | ParamAutomationEffect; // extendable
 export interface SoundLayer {
   id: string;
   type: LayerType;
@@ -87,13 +100,28 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
   let mergerNode: ChannelMergerNode | null = null;
   let leftGain: GainNode | null = null;
   let rightGain: GainNode | null = null;
+  let stereoPan: StereoPannerNode | null = null;
   let analyserNode: AnalyserNode | null = null;
   const effectHandles = new Map<string, NoiseNodeHandle>();
+  const automationTimers = new Map<string, number>();
   function computePair(base: number, beat: number) {
     const safeBase = Math.max(1, base || 0);
     const l = Math.max(1, safeBase - beat / 2);
     const r = Math.max(1, safeBase + beat / 2);
     return [l, r] as const;
+  }
+  // Pan via a post-merge StereoPannerNode to avoid altering oscillator timbre
+  function smoothSetFreq(param: AudioParam | null, value: number) {
+    if (!param || !ctx) return;
+    const v = Math.max(1, value);
+    try {
+      param.cancelScheduledValues(ctx.currentTime);
+      param.setTargetAtTime(v, ctx.currentTime, 0.03);
+    } catch {
+      try {
+        (param as any).value = v;
+      } catch {}
+    }
   }
   async function reconcileEffects(effects?: LayerEffect[]) {
     const list = effects || [];
@@ -110,6 +138,15 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
         effectHandles.delete(id);
       }
     }
+    // Clear any automations that were removed
+    for (const [id, timer] of automationTimers.entries()) {
+      if (!byId.has(id)) {
+        try {
+          clearInterval(timer);
+        } catch {}
+        automationTimers.delete(id);
+      }
+    }
     const ctxLocal = ctx || getCtx();
     if (!ctxLocal) return;
     ctx = ctxLocal;
@@ -121,16 +158,23 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
             type: fx.type,
             gain: fx.gain,
             pan: fx.pan,
+            lpfHz: fx.lpfHz,
+            autopanHz: fx.autopanHz,
+            autopanDepth: fx.autopanDepth,
           });
-          if (playing) handle.connect(ctxLocal.destination);
+          if (playing) handle.connect(getMasterBus(ctxLocal).input);
           effectHandles.set(fx.id, handle);
         } else {
           existing.setType(fx.type);
           existing.setGain(fx.gain);
           existing.setPan(fx.pan);
+          if (fx.lpfHz) existing.setLpf(fx.lpfHz);
+          if ((fx.autopanHz || 0) > 0 && (fx.autopanDepth || 0) > 0)
+            existing.startAutoPan(fx.autopanHz!, fx.autopanDepth!);
+          else existing.stopAutoPan();
           if (playing) {
             try {
-              existing.connect(ctxLocal.destination);
+              existing.connect(getMasterBus(ctxLocal).input);
             } catch {}
           } else {
             try {
@@ -138,6 +182,65 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
             } catch {}
           }
         }
+      } else if (fx.kind === "automation") {
+        const exId = fx.id;
+        if (automationTimers.has(exId)) {
+          // already running; skip re-adding
+          continue;
+        }
+        const start = performance.now();
+        const dur = Math.max(0.05, fx.durationSec || 0);
+        const from = fx.from;
+        const to = fx.to;
+        const updateParam = (val: number) => {
+          if (fx.target === "beatOffset") {
+            layer.beatOffset = val;
+            const base = Math.max(1, layer.baseFreq || 200);
+            const [lf, rf] = computePair(base, val);
+            if (left && right) {
+              left.frequency.value = lf;
+              right.frequency.value = rf;
+            }
+            if (lOsc && rOsc) {
+              lOsc.frequency.value = lf;
+              rOsc.frequency.value = rf;
+            }
+          } else if (fx.target === "volume") {
+            layer.volume = val;
+            if (volNode) volNode.volume.value = tone.gainToDb(val);
+            if (gain) gain.gain.value = val;
+          } else if (fx.target === "pan") {
+            layer.pan = val;
+            const applyPan = (p: number) => {
+              const lp = p > 0 ? 1 - p : 1;
+              const rp = p < 0 ? 1 + p : 1;
+              if (leftGainTone && rightGainTone) {
+                leftGainTone.gain.value = lp;
+                rightGainTone.gain.value = rp;
+              }
+              if (leftGain && rightGain) {
+                leftGain.gain.value = lp;
+                rightGain.gain.value = rp;
+              }
+            };
+            applyPan(val);
+          } else if (fx.target === "pulseFreq") {
+            // Not applicable to binaural engine; ignore
+          }
+        };
+        updateParam(from);
+        const timer = window.setInterval(() => {
+          const t = (performance.now() - start) / (dur * 1000);
+          const k = Math.min(1, Math.max(0, t));
+          const v = from + (to - from) * k;
+          updateParam(v);
+          if (k >= 1) {
+            const id = automationTimers.get(exId);
+            if (id) clearInterval(id);
+            automationTimers.delete(exId);
+          }
+        }, 16);
+        automationTimers.set(exId, timer);
       }
     }
   }
@@ -145,6 +248,12 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
     if (!tone) {
       tone = await loadTone();
       if (tone?.Oscillator && tone?.Merge) {
+        // Align Tone with our shared AudioContext so we can route to the master bus
+        try {
+          const shared = getCtx();
+          tone.setContext?.(shared);
+          if (shared) ctx = shared;
+        } catch {}
         const base = layer.baseFreq || 200;
         const beat = layer.beatOffset || 0;
         const [lf, rf] = computePair(base, beat);
@@ -158,23 +267,27 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
         right.connect(rightGainTone).connect(merger, 0, 1);
         analyserToneFft = new tone.Analyser("fft", 1024);
         analyserToneWave = new tone.Analyser("waveform", 1024);
-        merger.chain(
-          volNode,
-          analyserToneFft,
-          tone.Destination || tone.getDestination?.()
-        );
-        volNode.connect?.(analyserToneWave);
-        const applyPan = (p: number) => {
-          const lp = p > 0 ? 1 - p : 1;
-          const rp = p < 0 ? 1 + p : 1;
-          leftGainTone.gain.value = lp;
-          rightGainTone.gain.value = rp;
-        };
-        applyPan(layer.pan || 0);
+        // Route to our master bus instead of Tone.Destination; pan after Volume using native StereoPanner
+        try {
+          const bus = getMasterBus(ctx || getCtx()!);
+          // Create a native StereoPanner for consistent behavior
+          stereoPan = (ctx || getCtx()!)!.createStereoPanner();
+          stereoPan.pan.value = layer.pan || 0;
+          merger.connect(volNode);
+          (volNode as any).connect?.(stereoPan);
+          stereoPan.connect(analyserToneFft as any);
+          stereoPan.connect(bus.input);
+          volNode.connect?.(analyserToneWave);
+        } catch {}
         return;
       }
     }
     if (tone?.Oscillator && tone?.Merge && !left) {
+      try {
+        const shared = getCtx();
+        tone.setContext?.(shared);
+        if (shared) ctx = shared;
+      } catch {}
       const base = Math.max(1, layer.baseFreq || 200);
       const beat = layer.beatOffset || 0;
       const [lf, rf] = computePair(base, beat);
@@ -188,19 +301,16 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
       right.connect(rightGainTone).connect(merger, 0, 1);
       analyserToneFft = new tone.Analyser("fft", 1024);
       analyserToneWave = new tone.Analyser("waveform", 1024);
-      merger.chain(
-        volNode,
-        analyserToneFft,
-        tone.Destination || tone.getDestination?.()
-      );
-      volNode.connect?.(analyserToneWave);
-      const applyPan = (p: number) => {
-        const lp = p > 0 ? 1 - p : 1;
-        const rp = p < 0 ? 1 + p : 1;
-        leftGainTone.gain.value = lp;
-        rightGainTone.gain.value = rp;
-      };
-      applyPan(layer.pan || 0);
+      try {
+        const bus = getMasterBus(ctx || getCtx()!);
+        stereoPan = (ctx || getCtx()!)!.createStereoPanner();
+        stereoPan.pan.value = layer.pan || 0;
+        merger.connect(volNode);
+        (volNode as any).connect?.(stereoPan);
+        stereoPan.connect(analyserToneFft as any);
+        stereoPan.connect(bus.input);
+        volNode.connect?.(analyserToneWave);
+      } catch {}
       return;
     }
     if (!lOsc && ctx) {
@@ -222,16 +332,16 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
       mergerNode = ctx.createChannelMerger(2);
       lOsc.connect(leftGain).connect(mergerNode, 0, 0);
       rOsc.connect(rightGain).connect(mergerNode, 0, 1);
+      stereoPan = ctx.createStereoPanner();
+      stereoPan.pan.value = layer.pan || 0;
       analyserNode = ctx.createAnalyser();
       analyserNode.fftSize = 2048;
-      mergerNode.connect(gain).connect(analyserNode).connect(ctx.destination);
-      const applyPan = (p: number) => {
-        const lp = p > 0 ? 1 - p : 1;
-        const rp = p < 0 ? 1 + p : 1;
-        if (leftGain) leftGain.gain.value = lp;
-        if (rightGain) rightGain.gain.value = rp;
-      };
-      applyPan(layer.pan || 0);
+      const bus = getMasterBus(ctx);
+      mergerNode
+        .connect(gain)
+        .connect(stereoPan)
+        .connect(analyserNode)
+        .connect(bus.input);
     }
   }
   return {
@@ -250,6 +360,14 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
         await tone.start?.();
         left.start();
         right.start();
+        // Gentle fade in to avoid clicks
+        try {
+          if (ctx && gain) {
+            const target = layer.volume;
+            gain.gain.setValueAtTime(0, ctx.currentTime);
+            gain.gain.linearRampToValueAtTime(target, ctx.currentTime + 0.02);
+          }
+        } catch {}
         playing = true;
         await reconcileEffects(layer.effects);
       } else if (lOsc && rOsc && ctx) {
@@ -277,17 +395,48 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
           }
         }
         playing = true;
+        // Gentle fade in
+        try {
+          if (ctx && gain) {
+            const target = layer.volume;
+            gain.gain.setValueAtTime(0, ctx.currentTime);
+            gain.gain.linearRampToValueAtTime(target, ctx.currentTime + 0.02);
+          }
+        } catch {}
         await reconcileEffects(layer.effects);
       }
     },
     stop: () => {
       if (!playing) return;
       if (left && right) {
-        left.stop();
-        right.stop();
+        // fade out then stop
+        try {
+          if (ctx && gain) {
+            gain.gain.cancelScheduledValues(ctx.currentTime);
+            gain.gain.setValueAtTime(gain.gain.value, ctx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.0001, ctx.currentTime + 0.03);
+          }
+        } catch {}
+        setTimeout(() => {
+          try {
+            left.stop();
+            right.stop();
+          } catch {}
+        }, 35);
       } else if (lOsc && rOsc) {
-        lOsc.stop();
-        rOsc.stop();
+        try {
+          if (ctx && gain) {
+            gain.gain.cancelScheduledValues(ctx.currentTime);
+            gain.gain.setValueAtTime(gain.gain.value, ctx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.0001, ctx.currentTime + 0.03);
+          }
+        } catch {}
+        setTimeout(() => {
+          try {
+            lOsc!.stop();
+            rOsc!.stop();
+          } catch {}
+        }, 35);
         lOsc = null;
         rOsc = null;
       }
@@ -296,6 +445,12 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
           h.disconnect();
         } catch {}
       }
+      for (const id of automationTimers.values()) {
+        try {
+          clearInterval(id);
+        } catch {}
+      }
+      automationTimers.clear();
       playing = false;
     },
     update: (l) => {
@@ -306,29 +461,23 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
       const waveChanged = l.wave !== undefined && l.wave !== layer.wave;
       if (l.wave !== undefined) layer.wave = l.wave;
       const applyPanVal = (p: number) => {
-        const lp = p > 0 ? 1 - p : 1;
-        const rp = p < 0 ? 1 + p : 1;
-        if (leftGainTone && rightGainTone) {
-          leftGainTone.gain.value = lp;
-          rightGainTone.gain.value = rp;
-        }
-        if (leftGain && rightGain) {
-          leftGain.gain.value = lp;
-          rightGain.gain.value = rp;
-        }
+        if (stereoPan) stereoPan.pan.value = Math.max(-1, Math.min(1, p || 0));
       };
       if (left && right) {
         if (l.baseFreq !== undefined || l.beatOffset !== undefined) {
           const base = Math.max(1, layer.baseFreq || 200);
           const beat = layer.beatOffset || 0;
           const [lf, rf] = computePair(base, beat);
-          left.frequency.value = lf;
-          right.frequency.value = rf;
+          try {
+            left.frequency.value = lf;
+            right.frequency.value = rf;
+          } catch {}
         }
         if (l.volume !== undefined && volNode) {
           volNode.volume.value = tone.gainToDb(layer.volume);
         }
-        if (l.pan !== undefined) applyPanVal(layer.pan || 0);
+        if (l.pan !== undefined && stereoPan)
+          stereoPan.pan.value = layer.pan || 0;
         if (waveChanged) {
           try {
             left.stop();
@@ -357,11 +506,12 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
           const base = Math.max(1, layer.baseFreq || 200);
           const beat = layer.beatOffset || 0;
           const [lf, rf] = computePair(base, beat);
-          lOsc.frequency.value = lf;
-          rOsc.frequency.value = rf;
+          smoothSetFreq(lOsc.frequency, lf);
+          smoothSetFreq(rOsc.frequency, rf);
         }
         if (l.volume !== undefined && gain) gain.gain.value = layer.volume;
-        if (l.pan !== undefined) applyPanVal(layer.pan || 0);
+        if (l.pan !== undefined && stereoPan)
+          stereoPan.pan.value = layer.pan || 0;
         if (waveChanged && ctx) {
           try {
             lOsc.stop();
@@ -376,8 +526,8 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
           const base = layer.baseFreq || 200;
           const beat = layer.beatOffset || 0;
           const [lf, rf] = computePair(base, beat);
-          lOsc.frequency.value = lf;
-          rOsc.frequency.value = rf;
+          smoothSetFreq(lOsc.frequency, lf);
+          smoothSetFreq(rOsc.frequency, rf);
           if (!leftGain) {
             leftGain = ctx.createGain();
             leftGain.gain.value = 1;
@@ -393,14 +543,20 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
             gain = ctx.createGain();
             gain.gain.value = layer.volume;
           }
+          if (!stereoPan) {
+            stereoPan = ctx.createStereoPanner();
+            stereoPan.pan.value = layer.pan || 0;
+          }
           if (!analyserNode) {
             analyserNode = ctx.createAnalyser();
             analyserNode.fftSize = 2048;
           }
+          const bus = getMasterBus(ctx);
           mergerNode
             .connect(gain)
+            .connect(stereoPan)
             .connect(analyserNode)
-            .connect(ctx.destination);
+            .connect(bus.input);
           if (playing) {
             try {
               lOsc.start();
@@ -441,6 +597,12 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
         } catch {}
       }
       effectHandles.clear();
+      for (const id of automationTimers.values()) {
+        try {
+          clearInterval(id);
+        } catch {}
+      }
+      automationTimers.clear();
     },
     getAnalyser: () => analyserNode || null,
     getWaveformData: (arr) => {
@@ -520,7 +682,7 @@ export function createIsochronic(layer: SoundLayer): EngineHandle {
             gain: fx.gain,
             pan: fx.pan,
           });
-          if (playing) handle.connect(ctxLocal.destination);
+          if (playing) handle.connect(getMasterBus(ctxLocal).input);
           effectHandles.set(fx.id, handle);
         } else {
           existing.setType(fx.type);
@@ -528,7 +690,7 @@ export function createIsochronic(layer: SoundLayer): EngineHandle {
           existing.setPan(fx.pan);
           if (playing) {
             try {
-              existing.connect(ctxLocal.destination);
+              existing.connect(getMasterBus(ctxLocal).input);
             } catch {}
           } else {
             try {
@@ -580,12 +742,13 @@ export function createIsochronic(layer: SoundLayer): EngineHandle {
       stereo.pan.value = layer.pan || 0;
       analyserNode = ctx.createAnalyser();
       analyserNode.fftSize = 2048;
+      const bus = getMasterBus(ctx);
       carrier
         .connect(gate)
         .connect(stereo)
         .connect(gain)
         .connect(analyserNode)
-        .connect(ctx.destination);
+        .connect(bus.input);
     }
   }
   return {
@@ -614,6 +777,14 @@ export function createIsochronic(layer: SoundLayer): EngineHandle {
       } else if (carrier && gate && ctx) {
         ctx.resume();
         carrier.start();
+        try {
+          // fade in to reduce clicks
+          gain!.gain.setValueAtTime(0, ctx.currentTime);
+          gain!.gain.linearRampToValueAtTime(
+            layer.volume,
+            ctx.currentTime + 0.02
+          );
+        } catch {}
         playing = true;
         if (interval === null) {
           interval = window.setInterval(() => {
@@ -634,9 +805,20 @@ export function createIsochronic(layer: SoundLayer): EngineHandle {
         osc.stop();
       }
       if (carrier) {
-        carrier.stop();
-        carrier.disconnect();
-        carrier = null;
+        try {
+          gain!.gain.cancelScheduledValues(ctx!.currentTime);
+          gain!.gain.setValueAtTime(gain!.gain.value, ctx!.currentTime);
+          gain!.gain.linearRampToValueAtTime(0.0001, ctx!.currentTime + 0.03);
+        } catch {}
+        setTimeout(() => {
+          try {
+            carrier!.stop();
+          } catch {}
+          try {
+            carrier!.disconnect();
+          } catch {}
+          carrier = null;
+        }, 35);
       }
       if (interval) {
         clearInterval(interval);

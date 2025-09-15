@@ -81,6 +81,9 @@ export default function Mixer() {
   const [noiseType, setNoiseType] = useState<NoiseType>("white");
   const [noiseGain, setNoiseGain] = useState(0.25);
   const [noisePan, setNoisePan] = useState(0);
+  const [noiseLpf, setNoiseLpf] = useState<number>(20000);
+  const [noiseAutopanHz, setNoiseAutopanHz] = useState<number>(0);
+  const [noiseAutopanDepth, setNoiseAutopanDepth] = useState<number>(0);
   const [targetLayerId, setTargetLayerId] = useState<string | null>(null);
   const noiseCtxRef = useRef<AudioContext | null>(null);
   const noiseHandleRef = useRef<NoiseNodeHandle | null>(null);
@@ -88,9 +91,21 @@ export default function Mixer() {
   const [saveAsName, setSaveAsName] = useState("");
   const [loadedPresetId, setLoadedPresetId] = useState<string | null>(null);
   const lastLoadedSnapshot = useRef<string>("[]");
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-  const toggleExpanded = (id: string) =>
-    setExpanded((m) => ({ ...m, [id]: !m[id] }));
+  // Removed: expandable layer sections; waveform is always visible
+  // Mobile: active layer tab selection
+  const [activeLayerId, setActiveLayerId] = useState<string | null>(null);
+  useEffect(() => {
+    // Ensure we always have a valid active layer on mobile
+    if (!activeLayerId && layers.length > 0) {
+      setActiveLayerId(layers[0].id);
+    } else if (
+      activeLayerId &&
+      layers.length > 0 &&
+      !layers.find((l) => l.id === activeLayerId)
+    ) {
+      setActiveLayerId(layers[0].id);
+    }
+  }, [layers, activeLayerId]);
   const activeCount = layers.filter((l) => l.isPlaying).length;
   const didAutoloadRef = useRef(false);
   // Background picker UI state
@@ -315,6 +330,9 @@ export default function Mixer() {
         type: noiseType,
         gain: noiseGain,
         pan: noisePan,
+        lpfHz: noiseLpf,
+        autopanHz: noiseAutopanHz,
+        autopanDepth: noiseAutopanDepth,
       });
       handle.connect(ctx.destination);
       noiseHandleRef.current = handle;
@@ -322,6 +340,12 @@ export default function Mixer() {
       noiseHandleRef.current.setType(noiseType);
       noiseHandleRef.current.setGain(noiseGain);
       noiseHandleRef.current.setPan(noisePan);
+      noiseHandleRef.current.setLpf(noiseLpf);
+      if (noiseAutopanHz > 0 && noiseAutopanDepth > 0) {
+        noiseHandleRef.current.startAutoPan(noiseAutopanHz, noiseAutopanDepth);
+      } else {
+        noiseHandleRef.current.stopAutoPan();
+      }
     }
   }
   function stopNoisePreview() {
@@ -491,7 +515,7 @@ export default function Mixer() {
   }, [presetName, currentSnapshot, loadedPresetId, presets]);
 
   return (
-    <div className="w-full h-[100dvh] px-0 flex flex-col">
+    <div className="w-full h-[92dvh] md:h-[94dvh] lg:h-[96dvh] px-0 flex flex-col">
       {/* Top Header: Preset controls (title/edit/save) + Presets button */}
       <header className="px-4 py-2 bg-black/40 backdrop-blur supports-[backdrop-filter]:bg-black/35 border-b border-white/10">
         <div className="flex flex-col md:flex-row gap-3 items-start md:items-center justify-between">
@@ -656,7 +680,7 @@ export default function Mixer() {
       <div className="flex-1 min-h-0">
         <div className="grid grid-rows-[auto_1fr] lg:grid-rows-1 lg:grid-cols-[3fr_1fr] h-full w-full gap-0">
           {/* Left: Orb (75vw, 100vh) */}
-          <div className="relative w-full h-[50vh] lg:h-full">
+          <div className="relative w-full h-[35vh] md:h-[35vh] lg:h-full">
             <div
               ref={fsContainerRef}
               className="relative h-full overflow-hidden"
@@ -696,22 +720,32 @@ export default function Mixer() {
                 />
               )}
               {/* Subtle top-left title overlay */}
-              <div className="absolute left-4 right-4 top-3 flex items-center gap-3 text-white/80 z-20 pointer-events-auto">
-                <div className="text-lg font-medium tracking-wide text-white/90">
-                  Neural Mixer
+              <div
+                className="absolute left-2 right-2 sm:left-4 sm:right-4 flex items-center gap-2 sm:gap-3 text-white/80 z-20 pointer-events-auto"
+                style={{ top: "max(0.75rem, env(safe-area-inset-top))" }}
+              >
+                {/* Title + count (show on md+), compact count on small screens */}
+                <div className="hidden md:flex items-center gap-3">
+                  <div className="text-lg font-medium tracking-wide text-white/90">
+                    Neural Mixer
+                  </div>
+                  <span className="h-4 w-px bg-white/15" />
+                  <div className="text-xs uppercase tracking-wider text-teal-300/90">
+                    {activeCount}/{layers.length} layers active
+                  </div>
                 </div>
-                <span className="h-4 w-px bg-white/15" />
-                <div className="text-xs uppercase tracking-wider text-teal-300/90">
-                  {activeCount}/{layers.length} layers active
+                <div className="md:hidden text-xs text-white/80">
+                  {activeCount}/{layers.length}
                 </div>
-                <div className="ml-auto flex items-center gap-2 pointer-events-auto">
+                <div className="ml-auto flex flex-wrap items-center gap-1.5 sm:gap-2 pointer-events-auto">
                   <button
                     onClick={() => setShowBgPanel((v) => !v)}
                     className="px-2.5 py-1.5 rounded-md bg-white/10 hover:bg-white/15 text-white text-xs border border-white/15"
                     aria-label="Change background"
                     title="Change background"
                   >
-                    Change background
+                    <span className="hidden sm:inline">Change background</span>
+                    <span className="sm:hidden">BG</span>
                   </button>
                   <button
                     onClick={() => randomizeBackground()}
@@ -719,7 +753,8 @@ export default function Mixer() {
                     aria-label="Randomize background"
                     title="Randomize background"
                   >
-                    <Shuffle size={14} /> Random
+                    <Shuffle size={14} />
+                    <span className="hidden sm:inline">Random</span>
                   </button>
                   <button
                     onClick={() => setBgHidden((v) => !v)}
@@ -727,7 +762,8 @@ export default function Mixer() {
                     aria-label="Toggle background visibility"
                     title={bgHidden ? "Show background" : "Hide background"}
                   >
-                    {bgHidden ? <Eye size={14} /> : <EyeOff size={14} />} BG
+                    {bgHidden ? <Eye size={14} /> : <EyeOff size={14} />}
+                    <span className="hidden sm:inline">BG</span>
                   </button>
                   <button
                     onClick={() => setShowVisualizer((v) => !v)}
@@ -737,8 +773,8 @@ export default function Mixer() {
                       showVisualizer ? "Hide visualizer" : "Show visualizer"
                     }
                   >
-                    {showVisualizer ? <EyeOff size={14} /> : <Eye size={14} />}{" "}
-                    Mixer
+                    {showVisualizer ? <EyeOff size={14} /> : <Eye size={14} />}
+                    <span className="hidden sm:inline">Mixer</span>
                   </button>
                   <button
                     onClick={toggleFullscreen}
@@ -754,8 +790,8 @@ export default function Mixer() {
                       <Minimize2 size={14} />
                     ) : (
                       <Maximize2 size={14} />
-                    )}{" "}
-                    Fullscreen
+                    )}
+                    <span className="hidden sm:inline">Fullscreen</span>
                   </button>
                   {bgMedia?.kind === "video" && (
                     <button
@@ -809,12 +845,57 @@ export default function Mixer() {
             </div>
           </div>
 
+          {/* Mobile bottom tabs: show one layer at a time (fixed at bottom) */}
+          <div
+            className="sm:hidden fixed inset-x-0 bottom-0 z-40"
+            style={{ paddingBottom: `max(8px, env(safe-area-inset-bottom))` }}
+          >
+            <div className="mx-3 mb-1 rounded-xl border border-white/10 bg-black/60 backdrop-blur px-2 py-2">
+              <div className="grid grid-flow-col auto-cols-fr gap-2">
+                {layers.map((l, i) => {
+                  const active = l.id === activeLayerId;
+                  return (
+                    <button
+                      key={l.id}
+                      onClick={() => setActiveLayerId(l.id)}
+                      className={`h-10 rounded-lg border text-[12px] overflow-hidden text-ellipsis whitespace-nowrap transition-colors ${
+                        active
+                          ? "bg-teal-500/20 border-teal-400/60 text-teal-50"
+                          : "bg-transparent border-white/15 text-white/80 hover:bg-white/10"
+                      }`}
+                      title={`Layer ${i + 1}`}
+                    >
+                      {`Layer ${i + 1}`}
+                    </button>
+                  );
+                })}
+                {layers.length < 5 && (
+                  <button
+                    onClick={() => {
+                      addLayer();
+                      try {
+                        const all = useAppStore.getState().layers;
+                        if (all.length)
+                          setActiveLayerId(all[all.length - 1].id);
+                      } catch {}
+                    }}
+                    className="h-10 rounded-lg border border-white/15 text-white/80 hover:bg-white/10"
+                    title="Add layer"
+                    aria-label="Add layer"
+                  >
+                    <Plus size={18} />
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
           {/* Right: Control Panel (25vw, 100vh, single column) */}
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.15 }}
-            className="relative w-full h-[55vh] lg:h-full"
+            className="relative w-full h-[48vh] md:h-[52vh] lg:h-full"
           >
             <div
               className="relative h-full overflow-hidden border-l border-white/10"
@@ -826,10 +907,13 @@ export default function Mixer() {
                 backgroundPosition: "0 0, 11px 11px, 0 0",
               }}
             >
-              <div className="h-full overflow-y-auto px-3 pt-3 pb-4">
+              <div className="h-full overflow-y-auto px-0 pt-0 pb-0">
                 {/* Global Controls (sticky within panel) */}
-                <div className="sticky top-0 z-10 px-3 py-2 mb-2 bg-black/35 backdrop-blur supports-[backdrop-filter]:bg-black/30 border-b border-white/10">
-                  <div className="flex items-center gap-2">
+                <div
+                  className="sticky z-10 px-3 py-2 mb-2 bg-black/35 backdrop-blur supports-[backdrop-filter]:bg-black/30 border-b border-white/10"
+                  style={{ top: "env(safe-area-inset-top)" }}
+                >
+                  <div className="flex items-center justify-center gap-2">
                     <button
                       onClick={() => {
                         if (activeCount > 0) stopAll();
@@ -868,6 +952,12 @@ export default function Mixer() {
 
                 {/* Layer Management (Minimal Cards) - single column */}
                 <div className="grid gap-3 lg:gap-4 grid-cols-1">
+                  {/* On mobile, only the active layer card is visible (others hidden via class). On sm+ all show. */}
+                  {layers.length === 0 && (
+                    <div className="mx-3 sm:mx-4 rounded-xl border border-white/10 bg-white/5 p-3 text-white/60 text-sm">
+                      No layers yet. Use the + tab below to add one.
+                    </div>
+                  )}
                   {layers.map((layer, index) => {
                     const engine = engines.current[layer.id];
                     return (
@@ -876,9 +966,13 @@ export default function Mixer() {
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ duration: 0.35, delay: index * 0.04 }}
-                        className="relative group"
+                        className={`relative group ${
+                          layer.id === activeLayerId
+                            ? "block sm:block"
+                            : "hidden sm:block"
+                        }`}
                       >
-                        <div className="relative bg-black/30 border border-white/10 rounded-xl p-3.5 hover:border-white/20 transition-colors">
+                        <div className="mx-3 sm:mx-4 relative bg-black/30 border border-white/10 rounded-xl p-3.5 hover:border-white/20 transition-colors min-h-[36vh] sm:min-h-0">
                           {/* Header */}
                           <div className="flex items-center justify-between mb-2.5">
                             <div className="flex items-center gap-2 min-w-0">
@@ -950,13 +1044,7 @@ export default function Mixer() {
                                     <ChevronDown size={14} />
                                   </span>
                                 </div>
-                                <button
-                                  type="button"
-                                  onClick={() => toggleExpanded(layer.id)}
-                                  className="text-[10px] px-2 py-1 rounded-md bg-white/5 hover:bg-white/10 text-white/60"
-                                >
-                                  {expanded[layer.id] ? "Hide" : "More"}
-                                </button>
+                                {/* Removed 'More' toggle */}
                               </div>
                             </div>
                             <div className="flex items-center gap-1">
@@ -1024,7 +1112,7 @@ export default function Mixer() {
 
                           {/* Controls (Compact) */}
                           <div className="space-y-2">
-                            <div className="grid grid-cols-2 gap-3 text-[10px]">
+                            <div className="grid grid-cols-1 gap-3 text-[10px]">
                               <label className="space-y-1">
                                 <span className="flex justify-between items-center text-white/50">
                                   <span>Base</span>
@@ -1190,38 +1278,36 @@ export default function Mixer() {
                                 />
                               </label>
                             </div>
-                            {expanded[layer.id] && (
-                              <div className="pt-2 border-t border-white/5">
-                                <div className="text-[10px] uppercase tracking-wide text-white/40 mb-1">
-                                  Waveform
-                                </div>
-                                <div className="flex gap-1">
-                                  {(
-                                    [
-                                      "sine",
-                                      "square",
-                                      "sawtooth",
-                                      "triangle",
-                                    ] as const
-                                  ).map((w) => (
-                                    <button
-                                      key={w}
-                                      onClick={() => {
-                                        updateLayer(layer.id, { wave: w });
-                                        engine?.update({ wave: w });
-                                      }}
-                                      className={`flex-1 rounded-md px-1.5 py-1 text-[10px] capitalize border transition-colors ${
-                                        layer.wave === w
-                                          ? "bg-teal-500/80 border-teal-400 text-white"
-                                          : "bg-white/5 border-white/10 text-white/60 hover:bg-white/10"
-                                      }`}
-                                    >
-                                      {w === "sawtooth" ? "saw" : w}
-                                    </button>
-                                  ))}
-                                </div>
+                            <div className="pt-2 border-t border-white/5 block">
+                              <div className="text-[10px] uppercase tracking-wide text-white/40 mb-1">
+                                Waveform
                               </div>
-                            )}
+                              <div className="flex gap-1">
+                                {(
+                                  [
+                                    "sine",
+                                    "square",
+                                    "sawtooth",
+                                    "triangle",
+                                  ] as const
+                                ).map((w) => (
+                                  <button
+                                    key={w}
+                                    onClick={() => {
+                                      updateLayer(layer.id, { wave: w });
+                                      engine?.update({ wave: w });
+                                    }}
+                                    className={`flex-1 rounded-md px-1.5 py-1 text-[10px] capitalize border transition-colors ${
+                                      layer.wave === w
+                                        ? "bg-teal-500/80 border-teal-400 text-white"
+                                        : "bg-white/5 border-white/10 text-white/60 hover:bg-white/10"
+                                    }`}
+                                  >
+                                    {w === "sawtooth" ? "saw" : w}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
                           </div>
 
                           {/* Effects chips at bottom of layer card */}
@@ -1297,7 +1383,7 @@ export default function Mixer() {
                         duration: 0.35,
                         delay: layers.length * 0.04,
                       }}
-                      className="flex h-[140px] items-center justify-center rounded-xl border-2 border-dashed border-white/10 hover:border-teal-500/40 text-white/50 hover:text-teal-300 bg-black/20 text-sm font-medium gap-2"
+                      className="hidden sm:flex sm:mx-4 h-[140px] items-center justify-center rounded-xl border-2 border-dashed border-white/10 hover:border-teal-500/40 text-white/50 hover:text-teal-300 bg-black/20 text-sm font-medium gap-2"
                     >
                       <Plus size={16} /> Add Layer ({5 - layers.length})
                     </motion.button>
@@ -1598,12 +1684,15 @@ export default function Mixer() {
           {/* Drawer Panel */}
           <aside
             id="presets-drawer-panel"
-            className="absolute right-0 top-0 h-full w-[320px] sm:w-[360px] border-l border-white/10 bg-black/60 backdrop-blur-xl shadow-2xl"
+            className="absolute inset-0 sm:inset-auto sm:right-0 sm:top-0 sm:h-full sm:w-[360px] bg-black/80 sm:bg-black/60 backdrop-blur-xl shadow-2xl sm:border-l sm:border-white/10"
             role="dialog"
             aria-modal="true"
           >
             <div className="h-full flex flex-col">
-              <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
+              <div
+                className="flex items-center justify-between px-4 py-3 border-b border-white/10"
+                style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top))" }}
+              >
                 <h3
                   id="presets-drawer-title"
                   className="text-sm font-medium text-white"
@@ -1618,7 +1707,12 @@ export default function Mixer() {
                   <X size={16} />
                 </button>
               </div>
-              <div className="flex-1 overflow-y-auto px-4 py-3">
+              <div
+                className="flex-1 overflow-y-auto px-4 py-3"
+                style={{
+                  paddingBottom: "max(1rem, env(safe-area-inset-bottom))",
+                }}
+              >
                 {presets.length === 0 ? (
                   <div className="text-sm text-white/60 p-4 text-center">
                     No presets saved yet. Use "Save Preset" to store the current
@@ -1700,10 +1794,13 @@ export default function Mixer() {
           {/* Panel */}
           <aside
             id="effects-library-panel"
-            className="absolute right-0 top-0 h-full w-[320px] sm:w-[360px] border-l border-white/10 bg-black/60 backdrop-blur-xl shadow-2xl"
+            className="absolute inset-0 sm:inset-auto sm:right-0 sm:top-0 sm:h-full sm:w-[360px] bg-black/80 sm:bg-black/60 backdrop-blur-xl shadow-2xl sm:border-l sm:border-white/10"
           >
             <div className="h-full flex flex-col">
-              <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
+              <div
+                className="flex items-center justify-between px-4 py-3 border-b border-white/10"
+                style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top))" }}
+              >
                 <h3
                   id="effects-library-title"
                   className="text-sm font-medium text-white"
@@ -1718,7 +1815,12 @@ export default function Mixer() {
                   <X size={16} />
                 </button>
               </div>
-              <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
+              <div
+                className="flex-1 overflow-y-auto px-4 py-3 space-y-4"
+                style={{
+                  paddingBottom: "max(1rem, env(safe-area-inset-bottom))",
+                }}
+              >
                 {/* Target Layer Select */}
                 <div className="rounded-xl border border-white/10 bg-white/5 p-3">
                   <label className="block text-[11px] text-white/70 mb-1">
@@ -1837,6 +1939,89 @@ export default function Mixer() {
                       />
                     </div>
 
+                    {/* Low-pass filter */}
+                    <div>
+                      <div className="flex justify-between text-[11px] text-white/60">
+                        <span>Low-pass filter</span>
+                        <span className="text-white/80 font-medium">
+                          {Math.round(noiseLpf)} Hz
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min={200}
+                        max={20000}
+                        step={10}
+                        value={noiseLpf}
+                        onChange={(e) => {
+                          const v = Number(e.target.value);
+                          setNoiseLpf(v);
+                          noiseHandleRef.current?.setLpf(v);
+                        }}
+                        className="w-full appearance-none cursor-pointer"
+                      />
+                    </div>
+
+                    {/* Autopan */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <div className="flex justify-between text-[11px] text-white/60">
+                          <span>Autopan rate</span>
+                          <span className="text-white/80 font-medium">
+                            {noiseAutopanHz.toFixed(2)} Hz
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={0.5}
+                          step={0.01}
+                          value={noiseAutopanHz}
+                          onChange={(e) => {
+                            const v = Number(e.target.value);
+                            setNoiseAutopanHz(v);
+                            if (noiseHandleRef.current) {
+                              if (v > 0 && noiseAutopanDepth > 0)
+                                noiseHandleRef.current.startAutoPan(
+                                  v,
+                                  noiseAutopanDepth
+                                );
+                              else noiseHandleRef.current.stopAutoPan();
+                            }
+                          }}
+                          className="w-full appearance-none cursor-pointer"
+                        />
+                      </div>
+                      <div>
+                        <div className="flex justify-between text-[11px] text-white/60">
+                          <span>Autopan depth</span>
+                          <span className="text-white/80 font-medium">
+                            {(noiseAutopanDepth * 100).toFixed(0)}%
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={1}
+                          step={0.01}
+                          value={noiseAutopanDepth}
+                          onChange={(e) => {
+                            const v = Number(e.target.value);
+                            setNoiseAutopanDepth(v);
+                            if (noiseHandleRef.current) {
+                              if (noiseAutopanHz > 0 && v > 0)
+                                noiseHandleRef.current.startAutoPan(
+                                  noiseAutopanHz,
+                                  v
+                                );
+                              else noiseHandleRef.current.stopAutoPan();
+                            }
+                          }}
+                          className="w-full appearance-none cursor-pointer"
+                        />
+                      </div>
+                    </div>
+
                     <div className="flex items-center gap-2 pt-1">
                       <button
                         onClick={() => {
@@ -1872,6 +2057,9 @@ export default function Mixer() {
                             type: noiseType,
                             gain: noiseGain,
                             pan: noisePan,
+                            lpfHz: noiseLpf,
+                            autopanHz: noiseAutopanHz,
+                            autopanDepth: noiseAutopanDepth,
                           };
                           addLayerEffect(targetLayerId, effect);
                           // notify engine about effects change
