@@ -94,6 +94,10 @@ export default function Mixer() {
   // Removed: expandable layer sections; waveform is always visible
   // Mobile: active layer tab selection
   const [activeLayerId, setActiveLayerId] = useState<string | null>(null);
+  // Mobile: measure bottom tabs height to avoid overlap with scroll panel
+  const tabsRef = useRef<HTMLDivElement | null>(null);
+  // Header: measure height to size the main content to viewport minus header
+  const headerRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     // Ensure we always have a valid active layer on mobile
     if (!activeLayerId && layers.length > 0) {
@@ -106,6 +110,51 @@ export default function Mixer() {
       setActiveLayerId(layers[0].id);
     }
   }, [layers, activeLayerId]);
+  // Keep a CSS var --mobile-tabs-h in sync with actual tabs height
+  useEffect(() => {
+    const updateVars = () => {
+      const isDesktop =
+        typeof window !== "undefined" && window.innerWidth >= 640; // sm breakpoint
+      const tabsH = isDesktop ? 0 : tabsRef.current?.offsetHeight ?? 0;
+      const headerH = headerRef.current?.offsetHeight ?? 0;
+      document.documentElement.style.setProperty(
+        "--mobile-tabs-h",
+        `${tabsH}px`
+      );
+      document.documentElement.style.setProperty(
+        "--app-header-h",
+        `${headerH}px`
+      );
+    };
+    updateVars();
+    // Defer another update to catch post-mount layout
+    if (typeof window !== "undefined") {
+      requestAnimationFrame(updateVars);
+      setTimeout(updateVars, 50);
+    }
+    let roTabs: ResizeObserver | null = null;
+    let roHeader: ResizeObserver | null = null;
+    if (typeof window !== "undefined") {
+      roTabs = new ResizeObserver(updateVars);
+      roHeader = new ResizeObserver(updateVars);
+      if (tabsRef.current) roTabs.observe(tabsRef.current);
+      if (headerRef.current) roHeader.observe(headerRef.current);
+      window.addEventListener("resize", updateVars);
+      window.addEventListener("orientationchange", updateVars);
+    }
+    return () => {
+      try {
+        roTabs?.disconnect();
+        roHeader?.disconnect();
+      } catch {}
+      if (typeof window !== "undefined") {
+        window.removeEventListener("resize", updateVars);
+        window.removeEventListener("orientationchange", updateVars);
+      }
+      document.documentElement.style.removeProperty("--mobile-tabs-h");
+      document.documentElement.style.removeProperty("--app-header-h");
+    };
+  }, []);
   const activeCount = layers.filter((l) => l.isPlaying).length;
   const didAutoloadRef = useRef(false);
   // Background picker UI state
@@ -515,9 +564,12 @@ export default function Mixer() {
   }, [presetName, currentSnapshot, loadedPresetId, presets]);
 
   return (
-    <div className="w-full h-[92dvh] md:h-[94dvh] lg:h-[96dvh] px-0 flex flex-col">
+    <div className="w-full min-h-[100svh] px-0 flex flex-col">
       {/* Top Header: Preset controls (title/edit/save) + Presets button */}
-      <header className="px-4 py-2 bg-black/40 backdrop-blur supports-[backdrop-filter]:bg-black/35 border-b border-white/10">
+      <header
+        ref={headerRef}
+        className="px-4 py-2 bg-black/40 backdrop-blur supports-[backdrop-filter]:bg-black/35 border-b border-white/10"
+      >
         <div className="flex flex-col md:flex-row gap-3 items-start md:items-center justify-between">
           <div className="flex items-center gap-3">
             {editingTitle ? (
@@ -678,9 +730,15 @@ export default function Mixer() {
       </header>
 
       <div className="flex-1 min-h-0">
-        <div className="grid grid-rows-[auto_1fr] lg:grid-rows-1 lg:grid-cols-[3fr_1fr] h-full w-full gap-0">
+        <div
+          className="grid grid-rows-[auto_1fr] lg:grid-rows-1 lg:grid-cols-[3fr_1fr] w-full gap-0 min-h-0"
+          style={{
+            maxHeight: "calc(100svh - var(--app-header-h, 0px))",
+            minHeight: "calc(100svh - var(--app-header-h, 0px))",
+          }}
+        >
           {/* Left: Orb (75vw, 100vh) */}
-          <div className="relative w-full h-[35vh] md:h-[35vh] lg:h-full">
+          <div className="relative w-full h-[35vh] md:h-[40vh] lg:h-auto lg:min-h-[420px]">
             <div
               ref={fsContainerRef}
               className="relative h-full overflow-hidden"
@@ -845,57 +903,14 @@ export default function Mixer() {
             </div>
           </div>
 
-          {/* Mobile bottom tabs: show one layer at a time (fixed at bottom) */}
-          <div
-            className="sm:hidden fixed inset-x-0 bottom-0 z-40"
-            style={{ paddingBottom: `max(8px, env(safe-area-inset-bottom))` }}
-          >
-            <div className="mx-3 mb-1 rounded-xl border border-white/10 bg-black/60 backdrop-blur px-2 py-2">
-              <div className="grid grid-flow-col auto-cols-fr gap-2">
-                {layers.map((l, i) => {
-                  const active = l.id === activeLayerId;
-                  return (
-                    <button
-                      key={l.id}
-                      onClick={() => setActiveLayerId(l.id)}
-                      className={`h-10 rounded-lg border text-[12px] overflow-hidden text-ellipsis whitespace-nowrap transition-colors ${
-                        active
-                          ? "bg-teal-500/20 border-teal-400/60 text-teal-50"
-                          : "bg-transparent border-white/15 text-white/80 hover:bg-white/10"
-                      }`}
-                      title={`Layer ${i + 1}`}
-                    >
-                      {`Layer ${i + 1}`}
-                    </button>
-                  );
-                })}
-                {layers.length < 5 && (
-                  <button
-                    onClick={() => {
-                      addLayer();
-                      try {
-                        const all = useAppStore.getState().layers;
-                        if (all.length)
-                          setActiveLayerId(all[all.length - 1].id);
-                      } catch {}
-                    }}
-                    className="h-10 rounded-lg border border-white/15 text-white/80 hover:bg-white/10"
-                    title="Add layer"
-                    aria-label="Add layer"
-                  >
-                    <Plus size={18} />
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
+          {/* Mobile tabs moved inside the right panel scroller (sticky at bottom) */}
 
           {/* Right: Control Panel (25vw, 100vh, single column) */}
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.15 }}
-            className="relative w-full h-[48vh] md:h-[52vh] lg:h-full"
+            className="relative w-full min-h-0"
           >
             <div
               className="relative h-full overflow-hidden border-l border-white/10"
@@ -907,7 +922,13 @@ export default function Mixer() {
                 backgroundPosition: "0 0, 11px 11px, 0 0",
               }}
             >
-              <div className="h-full overflow-y-auto px-0 pt-0 pb-0">
+              <div
+                className="overflow-y-auto px-0 pt-0 pb-0 h-full"
+                style={{
+                  height: "100%",
+                  paddingBottom: "env(safe-area-inset-bottom)",
+                }}
+              >
                 {/* Global Controls (sticky within panel) */}
                 <div
                   className="sticky z-10 px-3 py-2 mb-2 bg-black/35 backdrop-blur supports-[backdrop-filter]:bg-black/30 border-b border-white/10"
@@ -1388,6 +1409,62 @@ export default function Mixer() {
                       <Plus size={16} /> Add Layer ({5 - layers.length})
                     </motion.button>
                   )}
+                </div>
+                {/* Bottom spacer for all devices (30px) */}
+                <div aria-hidden="true" style={{ height: "30px" }} />
+                {/* Mobile tabs: inside panel, sticky at bottom */}
+                <div
+                  ref={tabsRef}
+                  className="sm:hidden sticky bottom-0 z-20 border-t border-white/10 bg-black/60 backdrop-blur"
+                  style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+                >
+                  <div className="px-2 py-2">
+                    <div className="mx-3 flex gap-2">
+                      {layers.map((l, i) => {
+                        const active = l.id === activeLayerId;
+                        return (
+                          <button
+                            key={l.id}
+                            onClick={() => setActiveLayerId(l.id)}
+                            className={`flex-1 min-w-0 h-[50px] rounded-lg border text-[12px] overflow-hidden text-ellipsis whitespace-nowrap transition-colors ${
+                              active
+                                ? "bg-teal-500/20 border-teal-400/60 text-teal-50"
+                                : "bg-transparent border-white/15 text-white/80 hover:bg-white/10"
+                            }`}
+                            title={`Layer ${i + 1}`}
+                          >
+                            {`Layer ${i + 1}`}
+                          </button>
+                        );
+                      })}
+                      {layers.length < 5 && (
+                        <button
+                          onClick={() => {
+                            addLayer();
+                            try {
+                              const all = useAppStore.getState().layers;
+                              if (all.length)
+                                setActiveLayerId(all[all.length - 1].id);
+                            } catch {}
+                          }}
+                          className="flex-none w-[50px] h-[50px] rounded-lg border border-white/15 text-white/80 hover:bg-white/10 inline-flex items-center justify-center ml-auto"
+                          title="Add layer"
+                          aria-label="Add layer"
+                        >
+                          <Plus size={18} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  {/* Hidden safe-area sizing block to ensure tabsRef height accounts for insets on iOS */}
+                  <div
+                    aria-hidden="true"
+                    className="pointer-events-none select-none"
+                    style={{
+                      height: "env(safe-area-inset-bottom)",
+                      opacity: 0,
+                    }}
+                  />
                 </div>
               </div>
             </div>
