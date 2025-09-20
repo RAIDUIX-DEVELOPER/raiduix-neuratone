@@ -30,6 +30,19 @@ export const metadata: Metadata = {
     "NeuraTone — Free Binaural & Isochronic Soundscapes (Sleep, Calm, Focus)",
   description:
     "Create calming, layered binaural & isochronic soundscapes in seconds. Free. No sign‑up.",
+  keywords: [
+    "binaural beats",
+    "isochronic tones",
+    "brainwave entrainment",
+    "focus music",
+    "sleep sounds",
+    "calm",
+    "study",
+    "white noise",
+    "pink noise",
+    "brown noise",
+    "neuratone",
+  ],
   manifest: "/manifest.json",
   alternates: {
     canonical: "/",
@@ -44,7 +57,7 @@ export const metadata: Metadata = {
     siteName: "NeuraTone",
     images: [
       {
-        url: "/image-og.jpg",
+        url: "/og-image.jpg",
         width: 1200,
         height: 630,
         alt: "NeuraTone",
@@ -59,7 +72,7 @@ export const metadata: Metadata = {
       "Create calming, layered binaural & isochronic soundscapes in seconds. Free. No sign‑up.",
     images: [
       {
-        url: "/image-og.jpg",
+        url: "/og-image.jpg",
         alt: "NeuraTone",
       },
     ],

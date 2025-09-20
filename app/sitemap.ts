@@ -15,6 +15,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/learn/frequencies",
     "/learn/safety",
     "/faq",
+    "/api/facts",
   ];
   const now = new Date();
   return routes.map((path) => ({

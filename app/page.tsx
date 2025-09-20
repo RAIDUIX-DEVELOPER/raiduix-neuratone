@@ -23,6 +23,38 @@ export default function Home() {
           }),
         }}
       />
+      <Script
+        id="organization-jsonld"
+        type="application/ld+json"
+        strategy="afterInteractive"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            name: "NeuraTone",
+            url: "/",
+            logo: "/og-image.jpg",
+          }),
+        }}
+      />
+      <Script
+        id="sitelinks-jsonld"
+        type="application/ld+json"
+        strategy="afterInteractive"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            name: "NeuraTone",
+            url: "/",
+            potentialAction: {
+              "@type": "SearchAction",
+              target: "/app?q={search_term_string}",
+              "query-input": "required name=search_term_string",
+            },
+          }),
+        }}
+      />
       <MinimalCinematicHero />
 
       {/* Content Section */}

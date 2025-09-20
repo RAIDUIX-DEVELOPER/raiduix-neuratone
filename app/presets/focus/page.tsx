@@ -34,6 +34,18 @@ export default function FocusPresetPage() {
   };
   return (
     <main className="px-6 py-16 max-w-3xl mx-auto">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "Article",
+            headline: "Focus — Binaural & Isochronic Guide",
+            dateModified: new Date().toISOString(),
+            author: { "@type": "Organization", name: "NeuraTone" },
+          }),
+        }}
+      />
       <h1 className="text-3xl font-semibold text-slate-100 mb-4">
         Focus — Binaural & Isochronic Guide
       </h1>

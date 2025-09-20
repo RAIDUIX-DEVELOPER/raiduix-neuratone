@@ -11,6 +11,20 @@ export const metadata: Metadata = {
 export default function LearnIsochronicTones() {
   return (
     <main className="px-6 py-16 max-w-3xl mx-auto">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "Article",
+            headline: "What are isochronic tones?",
+            description:
+              "A concise guide to isochronic tones: how they work, when to use, safety, and how to try them in NeuraTone.",
+            dateModified: new Date().toISOString(),
+            author: { "@type": "Organization", name: "NeuraTone" },
+          }),
+        }}
+      />
       <h1 className="text-3xl font-semibold text-slate-100 mb-4">
         What are isochronic tones?
       </h1>
