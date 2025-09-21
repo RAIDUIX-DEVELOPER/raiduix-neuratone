@@ -89,6 +89,15 @@
 				"$eslint - stylish"
 			],
 			"group": "build"
+		},
+		{
+			"label": "build-verification",
+			"type": "shell",
+			"command": "npm run build",
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
 		}
 	]
 }

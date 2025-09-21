@@ -18,6 +18,13 @@ import {
   VolumeX,
   Maximize2,
   Minimize2,
+  Save,
+  FolderOpen,
+  SlidersHorizontal,
+  HelpCircle,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Minus,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { SoundLayer, createEngine, type LayerEffect } from "@/lib/audioEngine";
@@ -112,6 +119,11 @@ export default function Mixer() {
   }, [layers, activeLayerId]);
   // Keep a CSS var --mobile-tabs-h in sync with actual tabs height
   useEffect(() => {
+    // CSS Vars used across responsive layout:
+    //  --app-header-h: The measured height of the top header. We subtract this
+    //     from the viewport height to size the main grid.
+    //  --mobile-tabs-h: The measured height of the sticky mobile tabs so the
+    //     scrollable panel reserves bottom space and avoids overlap.
     const updateVars = () => {
       const isDesktop =
         typeof window !== "undefined" && window.innerWidth >= 640; // sm breakpoint
@@ -169,6 +181,8 @@ export default function Mixer() {
   const [videoMuted, setVideoMuted] = useState(true);
   const fsContainerRef = useRef<HTMLDivElement | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  // Mobile: collapse/expand left visualizer container
+  const [mixerCollapsed, setMixerCollapsed] = useState(false);
 
   // Keep video element's mute state in sync and handle play/pause
   useEffect(() => {
@@ -570,7 +584,7 @@ export default function Mixer() {
         ref={headerRef}
         className="px-4 py-2 bg-black/40 backdrop-blur supports-[backdrop-filter]:bg-black/35 border-b border-white/10"
       >
-        <div className="flex flex-col md:flex-row gap-3 items-start md:items-center justify-between">
+        <div className="flex items-center justify-between gap-2 min-w-0">
           <div className="flex items-center gap-3">
             {editingTitle ? (
               <input
@@ -586,11 +600,11 @@ export default function Mixer() {
                     (e.target as HTMLInputElement).blur();
                   } else if (e.key === "Escape") setEditingTitle(false);
                 }}
-                className="bg-black/40 border border-white/20 rounded-xl px-4 py-2 text-base font-light text-white focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500/50 backdrop-blur-sm"
+                className="bg-black/40 border border-white/20 rounded-xl px-3 py-2 text-base font-light text-white focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500/50 backdrop-blur-sm max-w-[60vw] sm:max-w-none"
               />
             ) : (
               <div className="flex items-center gap-3">
-                <h1 className="text-base lg:text-lg font-light text-white/90 tracking-wide max-w-[20rem] truncate">
+                <h1 className="text-base lg:text-lg font-light text-white/90 tracking-wide truncate max-w-[50vw] sm:max-w-[20rem]">
                   {presetName || "Unnamed Preset"}
                 </h1>
                 <button
@@ -604,7 +618,7 @@ export default function Mixer() {
               </div>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2 whitespace-nowrap">
             {/* Update existing preset when one is loaded */}
             {loadedPresetId && (
               <button
@@ -616,9 +630,10 @@ export default function Mixer() {
                   updatePreset(id, name);
                   lastLoadedSnapshot.current = JSON.stringify(layerSnapshot());
                 }}
-                className="px-3 py-1.5 btn-shape font-medium text-[11px] bg-teal-500/20 text-teal-300 border border-teal-500/30 hover:bg-teal-500/30 disabled:opacity-40"
+                className="px-2.5 py-1.5 btn-shape font-medium text-[11px] bg-teal-500/20 text-teal-300 border border-teal-500/30 hover:bg-teal-500/30 disabled:opacity-40 inline-flex items-center gap-1"
               >
-                Update Preset
+                <Save size={14} />
+                <span className="hidden sm:inline">Update Preset</span>
               </button>
             )}
             {/* Save current as a new preset (only when a preset is loaded) */}
@@ -631,9 +646,10 @@ export default function Mixer() {
                   setSaveAsName(suggested);
                   setShowSaveAsModal(true);
                 }}
-                className="px-3 py-1.5 btn-shape font-medium text-[11px] bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:bg-amber-500/25 disabled:opacity-40"
+                className="px-2.5 py-1.5 btn-shape font-medium text-[11px] bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:bg-amber-500/25 disabled:opacity-40 inline-flex items-center gap-1"
               >
-                Save As New
+                <Save size={14} />
+                <span className="hidden sm:inline">Save As New</span>
               </button>
             )}
             {/* Save Preset when none is loaded (legacy create path) */}
@@ -655,16 +671,17 @@ export default function Mixer() {
                     );
                   }
                 }}
-                className="px-3 py-1.5 btn-shape font-medium text-[11px] bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:bg-amber-500/25 disabled:opacity-40"
+                className="px-2.5 py-1.5 btn-shape font-medium text-[11px] bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:bg-amber-500/25 disabled:opacity-40 inline-flex items-center gap-1"
               >
-                Save Preset
+                <Save size={14} />
+                <span className="hidden sm:inline">Save Preset</span>
               </button>
             )}
             <button
               onClick={() => setShowPresetsModal((v) => !v)}
               aria-expanded={showPresetsModal}
               aria-controls="presets-drawer-panel"
-              className={`inline-flex items-center gap-2 px-3 py-1.5 btn-shape text-white text-xs font-medium transition-colors border ${
+              className={`inline-flex items-center gap-1 sm:gap-2 px-2.5 py-1.5 btn-shape text-white text-xs font-medium transition-colors border ${
                 showPresetsModal
                   ? "bg-white/15 border-white/30"
                   : "bg-white/5 hover:bg-white/10 border-white/10"
@@ -673,12 +690,12 @@ export default function Mixer() {
               {showPresetsModal ? (
                 <>
                   <X size={14} />
-                  Close Presets
+                  <span className="hidden sm:inline">Close Presets</span>
                 </>
               ) : (
                 <>
-                  <ChevronDown size={14} />
-                  Open Presets
+                  <FolderOpen size={14} />
+                  <span className="hidden sm:inline">Open Presets</span>
                 </>
               )}
             </button>
@@ -686,7 +703,7 @@ export default function Mixer() {
               onClick={() => setShowEffectsLibrary((v) => !v)}
               aria-expanded={showEffectsLibrary}
               aria-controls="effects-library-panel"
-              className={`inline-flex items-center gap-2 px-3 py-1.5 btn-shape text-white text-xs font-medium transition-colors border ${
+              className={`inline-flex items-center gap-1 sm:gap-2 px-2.5 py-1.5 btn-shape text-white text-xs font-medium transition-colors border ${
                 showEffectsLibrary
                   ? "bg-white/15 border-white/30"
                   : "bg-white/5 hover:bg-white/10 border-white/10"
@@ -695,12 +712,12 @@ export default function Mixer() {
               {showEffectsLibrary ? (
                 <>
                   <X size={14} />
-                  Close Effects
+                  <span className="hidden sm:inline">Close Effects</span>
                 </>
               ) : (
                 <>
-                  <ChevronDown size={14} />
-                  Effects Library
+                  <SlidersHorizontal size={14} />
+                  <span className="hidden sm:inline">Effects Library</span>
                 </>
               )}
             </button>
@@ -708,22 +725,27 @@ export default function Mixer() {
             {/* Help pill button */}
             <button
               onClick={() => setShowHelp(true)}
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/15 text-white text-xs font-medium border border-white/10"
+              className="inline-flex items-center gap-1 sm:gap-2 px-2.5 py-1.5 rounded-full bg-white/10 hover:bg-white/15 text-white text-xs font-medium border border-white/10"
               aria-label="Open help"
             >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <circle cx="12" cy="12" r="10" />
-                <path d="M9.09 9a3 3 0 1 1 5.82 1c0 2-3 2-3 4" />
-                <line x1="12" y1="17" x2="12.01" y2="17" />
-              </svg>
-              Help
+              <HelpCircle size={14} />
+              <span className="hidden sm:inline">Help</span>
+            </button>
+
+            {/* Mobile only: collapse/expand visualizer */}
+            <button
+              onClick={() => setMixerCollapsed((v) => !v)}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-white/10 hover:bg-white/15 text-white text-xs font-medium border border-white/10 sm:hidden"
+              aria-label={
+                mixerCollapsed ? "Show visualizer" : "Hide visualizer"
+              }
+              title={mixerCollapsed ? "Show visualizer" : "Hide visualizer"}
+            >
+              {mixerCollapsed ? (
+                <PanelLeftOpen size={14} />
+              ) : (
+                <PanelLeftClose size={14} />
+              )}
             </button>
           </div>
         </div>
@@ -731,14 +753,18 @@ export default function Mixer() {
 
       <div className="flex-1 min-h-0">
         <div
-          className="grid grid-rows-[auto_1fr] lg:grid-rows-1 lg:grid-cols-[3fr_1fr] w-full gap-0 min-h-0"
+          className="grid grid-rows-[auto_1fr] sm:grid-rows-[auto_1fr] md:grid-rows-1 md:grid-cols-[5fr_3fr] lg:grid-cols-[7fr_3fr] xl:grid-cols-[3fr_1fr] w-full gap-0 min-h-0 min-w-0"
           style={{
             maxHeight: "calc(100svh - var(--app-header-h, 0px))",
             minHeight: "calc(100svh - var(--app-header-h, 0px))",
           }}
         >
           {/* Left: Orb (75vw, 100vh) */}
-          <div className="relative w-full h-[35vh] md:h-[40vh] lg:h-auto lg:min-h-[420px]">
+          <div
+            className={`${
+              mixerCollapsed ? "hidden sm:block" : "block"
+            } relative w-full h-[30vh] xs:h-[35vh] sm:h-[40vh] md:h-auto md:min-h-[400px] lg:min-h-[450px] xl:min-h-[480px] min-w-0`}
+          >
             <div
               ref={fsContainerRef}
               className="relative h-full overflow-hidden"
@@ -910,10 +936,10 @@ export default function Mixer() {
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.15 }}
-            className="relative w-full min-h-0"
+            className="relative w-full min-h-0 min-w-0"
           >
             <div
-              className="relative h-full overflow-hidden border-l border-white/10"
+              className="relative h-full overflow-hidden border-l border-white/10 min-w-0"
               style={{
                 backgroundColor: "rgba(5,8,20,0.9)",
                 backgroundImage:
@@ -923,15 +949,15 @@ export default function Mixer() {
               }}
             >
               <div
-                className="overflow-y-auto px-0 pt-0 pb-0 h-full"
+                className="overflow-y-auto overflow-x-hidden px-0 sm:px-3 md:px-4 lg:px-4 pt-0 pb-0 h-full"
                 style={{
                   height: "100%",
-                  paddingBottom: "env(safe-area-inset-bottom)",
+                  overscrollBehavior: "contain",
                 }}
               >
                 {/* Global Controls (sticky within panel) */}
                 <div
-                  className="sticky z-10 px-3 py-2 mb-2 bg-black/35 backdrop-blur supports-[backdrop-filter]:bg-black/30 border-b border-white/10"
+                  className="sticky z-10 px-0 sm:px-3 md:px-4 lg:px-4 py-2 mb-2 bg-black/35 backdrop-blur supports-[backdrop-filter]:bg-black/30 border-b border-white/10"
                   style={{ top: "env(safe-area-inset-top)" }}
                 >
                   <div className="flex items-center justify-center gap-2">
@@ -972,7 +998,7 @@ export default function Mixer() {
                 </div>
 
                 {/* Layer Management (Minimal Cards) - single column */}
-                <div className="grid gap-3 lg:gap-4 grid-cols-1">
+                <div className="grid gap-0 sm:gap-2 md:gap-3 lg:gap-3 xl:gap-4 grid-cols-1">
                   {/* On mobile, only the active layer card is visible (others hidden via class). On sm+ all show. */}
                   {layers.length === 0 && (
                     <div className="mx-3 sm:mx-4 rounded-xl border border-white/10 bg-white/5 p-3 text-white/60 text-sm">
@@ -993,88 +1019,91 @@ export default function Mixer() {
                             : "hidden sm:block"
                         }`}
                       >
-                        <div className="mx-3 sm:mx-4 relative bg-black/30 border border-white/10 rounded-xl p-3.5 hover:border-white/20 transition-colors min-h-[36vh] sm:min-h-0">
+                        <div
+                          role="region"
+                          aria-label={`Layer ${index + 1} controls`}
+                          className="mx-0 relative bg-black/25 border border-white/8 rounded-none sm:rounded-xl md:rounded-2xl p-0 hover:border-white/20 transition-colors w-full overflow-x-hidden max-w-full"
+                        >
                           {/* Header */}
-                          <div className="flex items-center justify-between mb-2.5">
-                            <div className="flex items-center gap-2 min-w-0">
-                              <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-teal-500/20 text-teal-300 text-xs font-medium">
+                          <div className="flex flex-wrap items-center justify-between gap-3 md:gap-3 mb-4 md:mb-4 lg:mb-2 xl:mb-2 min-w-0 p-3 lg:p-2 xl:p-2">
+                            <div className="flex items-center gap-3 md:gap-4 min-w-0 flex-1">
+                              <span className="inline-flex h-7 w-7 md:h-8 md:w-8 lg:h-8 lg:w-8 items-center justify-center rounded-lg bg-teal-500/20 text-teal-300 text-xs md:text-xs lg:text-xs xl:text-xs font-semibold">
                                 {index + 1}
                               </span>
-                              <div className="flex items-center gap-2">
-                                <div className="relative">
-                                  <select
-                                    value={layer.type}
-                                    onChange={(e) => {
-                                      const newType = e.target.value as any;
-                                      if (newType === layer.type) return;
-                                      const old = engines.current[layer.id];
-                                      const wasPlaying = layer.isPlaying;
-                                      try {
-                                        old?.stop();
-                                        old?.dispose?.();
-                                      } catch {}
-                                      delete engines.current[layer.id];
-                                      let patch: any = { type: newType };
-                                      if (newType === "binaural") {
-                                        patch = {
-                                          ...patch,
-                                          baseFreq: layer.baseFreq ?? 440,
-                                          beatOffset: 0,
-                                          wave: layer.wave || "sine",
-                                          pulseFreq: undefined,
-                                        };
-                                      } else if (newType === "isochronic") {
-                                        patch = {
-                                          ...patch,
-                                          baseFreq: layer.baseFreq ?? 200,
-                                          pulseFreq: layer.pulseFreq ?? 10,
-                                          beatOffset: undefined,
-                                        };
+                              <div className="relative">
+                                <select
+                                  value={layer.type}
+                                  onChange={(e) => {
+                                    const newType = e.target.value as any;
+                                    if (newType === layer.type) return;
+                                    const old = engines.current[layer.id];
+                                    const wasPlaying = layer.isPlaying;
+                                    try {
+                                      old?.stop();
+                                      old?.dispose?.();
+                                    } catch {}
+                                    delete engines.current[layer.id];
+                                    let patch: any = { type: newType };
+                                    if (newType === "binaural") {
+                                      patch = {
+                                        ...patch,
+                                        baseFreq: layer.baseFreq ?? 440,
+                                        beatOffset: 0,
+                                        wave: layer.wave || "sine",
+                                        pulseFreq: undefined,
+                                      };
+                                    } else if (newType === "isochronic") {
+                                      patch = {
+                                        ...patch,
+                                        baseFreq: layer.baseFreq ?? 200,
+                                        pulseFreq: layer.pulseFreq ?? 10,
+                                        beatOffset: undefined,
+                                      };
+                                    }
+                                    updateLayer(layer.id, patch);
+                                    const updated = useAppStore
+                                      .getState()
+                                      .layers.find((l) => l.id === layer.id);
+                                    if (updated) {
+                                      engines.current[layer.id] = createEngine(
+                                        updated as SoundLayer
+                                      );
+                                      if (wasPlaying) {
+                                        engines.current[layer.id].start();
+                                        updateLayer(layer.id, {
+                                          isPlaying: true,
+                                        });
                                       }
-                                      updateLayer(layer.id, patch);
-                                      const updated = useAppStore
-                                        .getState()
-                                        .layers.find((l) => l.id === layer.id);
-                                      if (updated) {
-                                        engines.current[layer.id] =
-                                          createEngine(updated as SoundLayer);
-                                        if (wasPlaying) {
-                                          engines.current[layer.id].start();
-                                          updateLayer(layer.id, {
-                                            isPlaying: true,
-                                          });
-                                        }
-                                      }
-                                    }}
-                                    className="bg-black/40 border border-white/15 rounded-md pl-2 pr-6 py-1 text-[11px] text-white/80 focus:outline-none focus:ring-1 focus:ring-teal-500/50 focus:border-teal-500/50 appearance-none cursor-pointer"
+                                    }
+                                  }}
+                                  className="bg-black/50 border border-white/25 hover:border-white/35 rounded-lg pl-3 pr-8 h-9 min-w-[6rem] text-xs md:text-xs lg:text-xs xl:text-xs text-white/90 font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/60 focus:border-teal-500/70 appearance-none cursor-pointer transition-all duration-150"
+                                >
+                                  <option
+                                    className="bg-slate-900"
+                                    value="binaural"
                                   >
-                                    <option
-                                      className="bg-slate-900"
-                                      value="binaural"
-                                    >
-                                      Binaural
-                                    </option>
-                                    <option
-                                      className="bg-slate-900"
-                                      value="isochronic"
-                                    >
-                                      Isochronic
-                                    </option>
-                                  </select>
-                                  <span className="pointer-events-none absolute inset-y-0 right-1 flex items-center text-white/50">
-                                    <ChevronDown size={14} />
-                                  </span>
-                                </div>
-                                {/* Removed 'More' toggle */}
+                                    Binaural
+                                  </option>
+                                  <option
+                                    className="bg-slate-900"
+                                    value="isochronic"
+                                  >
+                                    Isochronic
+                                  </option>
+                                </select>
+                                <span className="pointer-events-none absolute inset-y-0 right-1 flex items-center text-white/50">
+                                  <ChevronDown size={14} />
+                                </span>
                               </div>
+                              {/* Removed 'More' toggle */}
                             </div>
-                            <div className="flex items-center gap-1">
+                            <div className="flex items-center gap-2 w-full sm:w-auto justify-end min-w-0">
                               <button
                                 onClick={() => togglePlay(layer)}
-                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-medium transition-colors ${
+                                className={`inline-flex items-center gap-2 px-3 py-2 sm:py-2 rounded-lg text-xs md:text-xs lg:text-[10px] xl:text-[10px] font-semibold transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/60 ${
                                   layer.isPlaying
-                                    ? "bg-teal-500/80 text-white"
-                                    : "bg-white/5 text-white/60 hover:bg-white/10"
+                                    ? "bg-teal-500/90 hover:bg-teal-500 text-white shadow-lg shadow-teal-500/25"
+                                    : "bg-white/8 text-white/70 hover:bg-white/15 hover:text-white/90 border border-white/15 hover:border-white/25"
                                 }`}
                               >
                                 {layer.isPlaying ? (
@@ -1106,7 +1135,7 @@ export default function Mixer() {
                                     wave: "sine",
                                   });
                                 }}
-                                className="p-1.5 btn-shape text-white/40 hover:text-amber-300 hover:bg-amber-500/10 transition-colors"
+                                className="p-2.5 sm:p-2 rounded-lg text-white/50 hover:text-amber-300 hover:bg-amber-500/15 border border-white/10 hover:border-amber-500/30 transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/50"
                                 title="Reset layer"
                               >
                                 <svg
@@ -1123,7 +1152,7 @@ export default function Mixer() {
                               </button>
                               <button
                                 onClick={() => handleRemoveLayer(layer.id)}
-                                className="p-1.5 btn-shape text-white/40 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                                className="p-2.5 sm:p-2 rounded-lg text-white/50 hover:text-red-400 hover:bg-red-500/15 border border-white/10 hover:border-red-500/30 transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400/50"
                                 title="Remove layer"
                               >
                                 <Trash2 size={16} />
@@ -1131,13 +1160,39 @@ export default function Mixer() {
                             </div>
                           </div>
 
-                          {/* Controls (Compact) */}
-                          <div className="space-y-2">
-                            <div className="grid grid-cols-1 gap-3 text-[10px]">
-                              <label className="space-y-1">
-                                <span className="flex justify-between items-center text-white/50">
-                                  <span>Base</span>
-                                  <span className="text-white/70 font-medium inline-flex items-center gap-1">
+                          {/* Controls (Enhanced layout with better visual hierarchy) */}
+                          <div className="space-y-3 md:space-y-4 lg:space-y-2 xl:space-y-2 min-w-0 max-w-full px-3 lg:px-2 xl:px-2">
+                            {/* Frequency Controls Section */}
+                            <div className="space-y-2 text-[10px] min-w-0 max-w-full bg-black/10 rounded-lg p-3 md:p-3 lg:p-1.5 xl:p-1.5 border border-white/5">
+                              <div className="space-y-2 min-w-0 max-w-full">
+                                <div className="flex flex-wrap items-center justify-between gap-2 text-white/60">
+                                  <label
+                                    id={`baseLabel-${layer.id}`}
+                                    htmlFor={`base-${layer.id}`}
+                                    className="text-[11px] md:text-[10px] lg:text-[9px] xl:text-[9px] font-medium uppercase tracking-wider"
+                                  >
+                                    Base Freq
+                                  </label>
+                                  <div className="text-white/80 font-medium inline-flex items-center gap-1 md:gap-2 lg:gap-1 xl:gap-1 shrink min-w-0 flex-wrap">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const cur = layer.baseFreq ?? 440;
+                                        const next = Math.max(
+                                          1,
+                                          Math.min(5000, cur - 5)
+                                        );
+                                        updateLayer(layer.id, {
+                                          baseFreq: next,
+                                        });
+                                        engine?.update({ baseFreq: next });
+                                      }}
+                                      className="inline-flex items-center justify-center h-7 w-7 md:h-8 md:w-8 lg:h-7 lg:w-7 xl:h-7 xl:w-7 rounded-lg bg-white/8 hover:bg-white/15 border border-white/20 hover:border-white/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/60 transition-all duration-150"
+                                      aria-label="Decrease base frequency by 5 Hz"
+                                      title="-5 Hz"
+                                    >
+                                      <Minus size={14} />
+                                    </button>
                                     <input
                                       type="number"
                                       value={layer.baseFreq ?? 440}
@@ -1156,11 +1211,35 @@ export default function Mixer() {
                                         });
                                         engine?.update({ baseFreq: clamped });
                                       }}
-                                      className="w-20 bg-black/40 border border-white/20 rounded-md px-2 py-1 text-[11px] text-white focus:outline-none focus:ring-1 focus:ring-teal-500/50 focus:border-teal-500/50"
+                                      id={`base-${layer.id}`}
+                                      inputMode="decimal"
+                                      autoComplete="off"
+                                      autoCorrect="off"
+                                      spellCheck={false}
+                                      className="w-16 sm:w-18 md:w-20 lg:w-20 xl:w-22 min-w-[4rem] max-w-[6rem] bg-black/50 border border-white/25 hover:border-white/35 rounded-lg px-1.5 py-1.5 text-xs md:text-xs lg:text-xs xl:text-xs text-white text-center tabular-nums font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/60 focus:border-teal-500/70 transition-all duration-150"
                                     />
-                                    Hz
-                                  </span>
-                                </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const cur = layer.baseFreq ?? 440;
+                                        const next = Math.max(
+                                          1,
+                                          Math.min(5000, cur + 5)
+                                        );
+                                        updateLayer(layer.id, {
+                                          baseFreq: next,
+                                        });
+                                        engine?.update({ baseFreq: next });
+                                      }}
+                                      className="inline-flex items-center justify-center h-7 w-7 md:h-8 md:w-8 lg:h-7 lg:w-7 xl:h-7 xl:w-7 rounded-lg bg-white/8 hover:bg-white/15 border border-white/20 hover:border-white/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/60 transition-all duration-150"
+                                      aria-label="Increase base frequency by 5 Hz"
+                                      title="+5 Hz"
+                                    >
+                                      <Plus size={16} />
+                                    </button>
+                                    <span className="select-none">Hz</span>
+                                  </div>
+                                </div>
                                 <input
                                   type="range"
                                   min={1}
@@ -1172,17 +1251,63 @@ export default function Mixer() {
                                     updateLayer(layer.id, { baseFreq: freq });
                                     engine?.update({ baseFreq: freq });
                                   }}
-                                  className="w-full appearance-none cursor-pointer"
+                                  id={`baseRange-${layer.id}`}
+                                  aria-labelledby={`baseLabel-${layer.id}`}
+                                  className="w-full h-2 appearance-none cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/60 rounded-full bg-white/15 hover:bg-white/20 transition-colors duration-150"
+                                  style={{ touchAction: "pan-y" }}
                                 />
-                              </label>
-                              <label className="space-y-1">
-                                <span className="flex justify-between items-center text-white/50">
-                                  <span>
+                              </div>
+                              <div className="space-y-2 min-w-0 max-w-full">
+                                <div className="flex flex-wrap items-center justify-between gap-2 text-white/60">
+                                  <label
+                                    id={`beatpulseLabel-${layer.id}`}
+                                    htmlFor={`beatpulse-${layer.id}`}
+                                    className="text-[11px] md:text-[10px] lg:text-[9px] xl:text-[9px] font-medium uppercase tracking-wider"
+                                  >
                                     {layer.type === "binaural"
-                                      ? "Beat"
-                                      : "Pulse"}
-                                  </span>
-                                  <span className="text-white/70 font-medium inline-flex items-center gap-1">
+                                      ? "Beat Freq"
+                                      : "Pulse Freq"}
+                                  </label>
+                                  <div className="text-white/80 font-medium inline-flex items-center gap-1 md:gap-2 lg:gap-1 xl:gap-1 shrink min-w-0 flex-wrap">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const cur =
+                                          layer.type === "binaural"
+                                            ? layer.beatOffset ?? 0
+                                            : layer.pulseFreq ?? 10;
+                                        const next =
+                                          layer.type === "binaural"
+                                            ? Math.max(
+                                                0,
+                                                Math.min(1000, cur - 0.5)
+                                              )
+                                            : Math.max(
+                                                0.5,
+                                                Math.min(1000, cur - 0.5)
+                                              );
+                                        if (layer.type === "binaural") {
+                                          updateLayer(layer.id, {
+                                            beatOffset: next,
+                                          });
+                                          engine?.update({ beatOffset: next });
+                                        } else {
+                                          updateLayer(layer.id, {
+                                            pulseFreq: next,
+                                          });
+                                          engine?.update({ pulseFreq: next });
+                                        }
+                                      }}
+                                      className="inline-flex items-center justify-center h-7 w-7 md:h-8 md:w-8 lg:h-7 lg:w-7 xl:h-7 xl:w-7 rounded-lg bg-white/8 hover:bg-white/15 border border-white/20 hover:border-white/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/60 transition-all duration-150"
+                                      aria-label={
+                                        layer.type === "binaural"
+                                          ? "Decrease beat by 0.5 Hz"
+                                          : "Decrease pulse by 0.5 Hz"
+                                      }
+                                      title="-0.5 Hz"
+                                    >
+                                      <Minus size={16} />
+                                    </button>
                                     <input
                                       type="number"
                                       value={
@@ -1224,11 +1349,49 @@ export default function Mixer() {
                                           });
                                         }
                                       }}
-                                      className="w-24 bg-black/40 border border-white/20 rounded-md px-2 py-1 text-[11px] text-white focus:outline-none focus:ring-1 focus:ring-teal-500/50 focus:border-teal-500/50"
+                                      id={`beatpulse-${layer.id}`}
+                                      inputMode="decimal"
+                                      autoComplete="off"
+                                      autoCorrect="off"
+                                      spellCheck={false}
+                                      className="w-16 sm:w-18 md:w-20 lg:w-22 xl:w-24 min-w-[4rem] max-w-[6rem] bg-black/50 border border-white/25 hover:border-white/35 rounded-lg px-1.5 py-1.5 text-xs md:text-xs lg:text-xs xl:text-xs text-white text-center tabular-nums font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/60 focus:border-teal-500/70 transition-all duration-150"
                                     />
-                                    Hz
-                                  </span>
-                                </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const cur =
+                                          layer.type === "binaural"
+                                            ? layer.beatOffset ?? 0
+                                            : layer.pulseFreq ?? 10;
+                                        const next = Math.max(
+                                          layer.type === "binaural" ? 0 : 0.5,
+                                          Math.min(1000, cur + 0.5)
+                                        );
+                                        if (layer.type === "binaural") {
+                                          updateLayer(layer.id, {
+                                            beatOffset: next,
+                                          });
+                                          engine?.update({ beatOffset: next });
+                                        } else {
+                                          updateLayer(layer.id, {
+                                            pulseFreq: next,
+                                          });
+                                          engine?.update({ pulseFreq: next });
+                                        }
+                                      }}
+                                      className="inline-flex items-center justify-center h-7 w-7 md:h-8 md:w-8 lg:h-7 lg:w-7 xl:h-7 xl:w-7 rounded-lg bg-white/8 hover:bg-white/15 border border-white/20 hover:border-white/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/60 transition-all duration-150"
+                                      aria-label={
+                                        layer.type === "binaural"
+                                          ? "Increase beat by 0.5 Hz"
+                                          : "Increase pulse by 0.5 Hz"
+                                      }
+                                      title="+0.5 Hz"
+                                    >
+                                      <Plus size={16} />
+                                    </button>
+                                    <span className="select-none">Hz</span>
+                                  </div>
+                                </div>
                                 <input
                                   type="range"
                                   min={layer.type === "binaural" ? 0 : 0.5}
@@ -1249,16 +1412,28 @@ export default function Mixer() {
                                       engine?.update({ pulseFreq: v });
                                     }
                                   }}
-                                  className="w-full appearance-none cursor-pointer"
+                                  id={`beatpulseRange-${layer.id}`}
+                                  aria-labelledby={`beatpulseLabel-${layer.id}`}
+                                  className="w-full appearance-none cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-teal-500/40 rounded"
+                                  style={{ touchAction: "pan-y" }}
                                 />
-                              </label>
-                              <label className="space-y-1">
-                                <span className="flex justify-between text-white/50">
-                                  <span>Vol</span>
-                                  <span className="text-white/70 font-medium">
+                              </div>
+                            </div>
+                            {/* Volume & Pan Controls Section */}
+                            <div className="space-y-2 text-[10px] min-w-0 max-w-full bg-black/10 rounded-lg p-3 md:p-3 lg:p-1.5 xl:p-1.5 border border-white/5">
+                              <div className="space-y-2 min-w-0 max-w-full">
+                                <div className="flex justify-between text-white/70">
+                                  <label
+                                    id={`volLabel-${layer.id}`}
+                                    htmlFor={`volRange-${layer.id}`}
+                                    className="text-[11px] md:text-[10px] lg:text-[9px] xl:text-[9px] font-medium uppercase tracking-wider"
+                                  >
+                                    Volume
+                                  </label>
+                                  <div className="text-white/80 font-semibold whitespace-nowrap tabular-nums text-xs">
                                     {Math.round(layer.volume * 100)}%
-                                  </span>
-                                </span>
+                                  </div>
+                                </div>
                                 <input
                                   type="range"
                                   min={0}
@@ -1270,20 +1445,29 @@ export default function Mixer() {
                                     updateLayer(layer.id, { volume: vol });
                                     engine?.update({ volume: vol });
                                   }}
-                                  className="w-full appearance-none cursor-pointer"
+                                  id={`volRange-${layer.id}`}
+                                  aria-labelledby={`volLabel-${layer.id}`}
+                                  className="w-full h-2 appearance-none cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/60 rounded-full bg-white/15 hover:bg-white/20 transition-colors duration-150"
+                                  style={{ touchAction: "pan-y" }}
                                 />
-                              </label>
-                              <label className="space-y-1">
-                                <span className="flex justify-between text-white/50">
-                                  <span>Pan</span>
-                                  <span className="text-white/70 font-medium">
+                              </div>
+                              <div className="space-y-2 min-w-0 max-w-full">
+                                <div className="flex justify-between text-white/70">
+                                  <label
+                                    id={`panLabel-${layer.id}`}
+                                    htmlFor={`panRange-${layer.id}`}
+                                    className="text-[11px] md:text-[10px] lg:text-[9px] xl:text-[9px] font-medium uppercase tracking-wider"
+                                  >
+                                    Stereo Pan
+                                  </label>
+                                  <div className="text-white/80 font-semibold whitespace-nowrap tabular-nums text-xs">
                                     {layer.pan === 0
-                                      ? "C"
+                                      ? "CENTER"
                                       : layer.pan > 0
                                       ? "R " + Math.abs(layer.pan).toFixed(2)
                                       : "L " + Math.abs(layer.pan).toFixed(2)}
-                                  </span>
-                                </span>
+                                  </div>
+                                </div>
                                 <input
                                   type="range"
                                   min={-1}
@@ -1295,15 +1479,19 @@ export default function Mixer() {
                                     updateLayer(layer.id, { pan });
                                     engine?.update({ pan });
                                   }}
-                                  className="w-full appearance-none cursor-pointer"
+                                  id={`panRange-${layer.id}`}
+                                  aria-labelledby={`panLabel-${layer.id}`}
+                                  className="w-full h-2 appearance-none cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/60 rounded-full bg-white/15 hover:bg-white/20 transition-colors duration-150"
+                                  style={{ touchAction: "pan-y" }}
                                 />
-                              </label>
-                            </div>
-                            <div className="pt-2 border-t border-white/5 block">
-                              <div className="text-[10px] uppercase tracking-wide text-white/40 mb-1">
-                                Waveform
                               </div>
-                              <div className="flex gap-1">
+                            </div>
+                            {/* Waveform Selection Section */}
+                            <div className="bg-black/10 rounded-lg p-3 md:p-3 lg:p-1.5 xl:p-1.5 border border-white/5 min-w-0 max-w-full">
+                              <div className="text-xs md:text-xs lg:text-[10px] xl:text-[10px] uppercase tracking-wider font-medium text-white/80 mb-3 lg:mb-2 xl:mb-1.5">
+                                Waveform Selection
+                              </div>
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3 lg:gap-2 xl:gap-1.5 min-w-0 max-w-full">
                                 {(
                                   [
                                     "sine",
@@ -1318,10 +1506,10 @@ export default function Mixer() {
                                       updateLayer(layer.id, { wave: w });
                                       engine?.update({ wave: w });
                                     }}
-                                    className={`flex-1 rounded-md px-1.5 py-1 text-[10px] capitalize border transition-colors ${
+                                    className={`w-full h-7 md:h-8 lg:h-7 xl:h-7 rounded-lg px-1.5 md:px-2 lg:px-1.5 xl:px-1.5 py-1.5 text-xs md:text-xs lg:text-xs xl:text-xs font-semibold capitalize border transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/60 ${
                                       layer.wave === w
-                                        ? "bg-teal-500/80 border-teal-400 text-white"
-                                        : "bg-white/5 border-white/10 text-white/60 hover:bg-white/10"
+                                        ? "bg-teal-500/90 hover:bg-teal-500 border-teal-400 text-white shadow-lg shadow-teal-500/25"
+                                        : "bg-white/8 border-white/15 text-white/70 hover:bg-white/15 hover:border-white/25 hover:text-white/90"
                                     }`}
                                   >
                                     {w === "sawtooth" ? "saw" : w}
@@ -1404,22 +1592,31 @@ export default function Mixer() {
                         duration: 0.35,
                         delay: layers.length * 0.04,
                       }}
-                      className="hidden sm:flex sm:mx-4 h-[140px] items-center justify-center rounded-xl border-2 border-dashed border-white/10 hover:border-teal-500/40 text-white/50 hover:text-teal-300 bg-black/20 text-sm font-medium gap-2"
+                      className="hidden xs:flex xs:mx-2 sm:mx-3 md:mx-4 lg:mx-5 h-[100px] xs:h-[120px] sm:h-[130px] md:h-[140px] lg:h-[150px] items-center justify-center rounded-xl border-2 border-dashed border-white/10 hover:border-teal-500/40 text-white/50 hover:text-teal-300 bg-black/20 text-[11px] xs:text-xs sm:text-sm md:text-base font-medium gap-2"
                     >
                       <Plus size={16} /> Add Layer ({5 - layers.length})
                     </motion.button>
                   )}
                 </div>
-                {/* Bottom spacer for all devices (30px) */}
-                <div aria-hidden="true" style={{ height: "30px" }} />
+                {/* Bottom spacers: on mobile, reserve space equal to tabs height; on desktop, small aesthetic spacer */}
+                <div
+                  aria-hidden="true"
+                  className="sm:hidden"
+                  style={{ height: "var(--mobile-tabs-h)" }}
+                />
+                <div
+                  aria-hidden="true"
+                  className="hidden sm:block"
+                  style={{ height: "30px" }}
+                />
                 {/* Mobile tabs: inside panel, sticky at bottom */}
                 <div
                   ref={tabsRef}
                   className="sm:hidden sticky bottom-0 z-20 border-t border-white/10 bg-black/60 backdrop-blur"
                   style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
                 >
-                  <div className="px-2 py-2">
-                    <div className="mx-3 flex gap-2">
+                  <div className="px-0 py-2">
+                    <div className="mx-0 flex gap-2">
                       {layers.map((l, i) => {
                         const active = l.id === activeLayerId;
                         return (
@@ -1456,15 +1653,7 @@ export default function Mixer() {
                       )}
                     </div>
                   </div>
-                  {/* Hidden safe-area sizing block to ensure tabsRef height accounts for insets on iOS */}
-                  <div
-                    aria-hidden="true"
-                    className="pointer-events-none select-none"
-                    style={{
-                      height: "env(safe-area-inset-bottom)",
-                      opacity: 0,
-                    }}
-                  />
+                  {/* Padding-bottom on the tabs container already accounts for safe-area insets */}
                 </div>
               </div>
             </div>
