@@ -22,14 +22,22 @@ const fontMono = JetBrains_Mono({
   display: "swap",
 });
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+function getSiteUrl() {
+  const envUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (envUrl) return envUrl;
+  const vercelUrl = process.env.VERCEL_URL?.trim();
+  if (vercelUrl) return `https://${vercelUrl}`;
+  return "http://localhost:3000";
+}
+
+const SITE_URL = getSiteUrl();
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title:
-    "NeuraTone — Free Binaural & Isochronic Soundscapes with Professional Audio Effects",
+    "NeuraTone: Free Binaural & Isochronic Soundscapes for Sleep, Calm, Focus",
   description:
-    "Create immersive binaural & isochronic soundscapes with 17 professional audio effects. Advanced reverb, multi-band compression, spatial processing. Free. No sign‑up.",
+    "Free open‑source tool to create layered binaural and isochronic soundscapes for sleep, calm, and focus. No sign‑up required.",
   keywords: [
     "binaural beats",
     "isochronic tones",
@@ -59,9 +67,9 @@ export const metadata: Metadata = {
     type: "website",
     url: "/",
     title:
-      "NeuraTone — Free Binaural & Isochronic Soundscapes with Professional Audio Effects",
+      "NeuraTone: Free Binaural & Isochronic Soundscapes for Sleep, Calm, Focus",
     description:
-      "Create immersive binaural & isochronic soundscapes with 17 professional audio effects. Advanced reverb, multi-band compression, spatial processing. Free. No sign‑up.",
+      "Free open‑source tool to create layered binaural and isochronic soundscapes for sleep, calm, and focus. No sign‑up required.",
     siteName: "NeuraTone",
     images: [
       {
@@ -75,9 +83,9 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title:
-      "NeuraTone — Free Binaural & Isochronic Soundscapes with Professional Audio Effects",
+      "NeuraTone: Free Binaural & Isochronic Soundscapes for Sleep, Calm, Focus",
     description:
-      "Create immersive binaural & isochronic soundscapes with 17 professional audio effects. Advanced reverb, multi-band compression, spatial processing. Free. No sign‑up.",
+      "Free open‑source tool to create layered binaural and isochronic soundscapes for sleep, calm, and focus. No sign‑up required.",
     images: [
       {
         url: "/og-image.jpg",
@@ -92,6 +100,9 @@ export const metadata: Metadata = {
   },
   verification: {
     google: "sxwVueaYMYESOpHLJg3aqdOZV6ZcK0Y73A1nJOt1GZA",
+    other: {
+      "msvalidate.01": "B568D8FCC6B3E52FA9F170A74E8C3B1F",
+    },
   },
 };
 

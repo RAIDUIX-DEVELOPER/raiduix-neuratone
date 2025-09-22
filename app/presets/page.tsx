@@ -1,5 +1,67 @@
-import { redirect } from "next/navigation";
+import type { Metadata } from "next";
+import Link from "next/link";
 
-export default function PresetsRedirect() {
-  redirect("/app");
+export const metadata: Metadata = {
+  title: "Presets — Sleep, Calm, Focus | NeuraTone",
+  description:
+    "Browse NeuraTone presets. Start with Sleep, Calm, or Focus, then fine‑tune frequencies, carriers, and effects in the mixer.",
+  alternates: { canonical: "/presets" },
+};
+
+export default function PresetsHub() {
+  const items = [
+    {
+      href: "/presets/sleep",
+      title: "Sleep",
+      desc: "Gentle delta (~3 Hz) entrainment under a soft ambient bed. Comfortable, low‑intensity mix.",
+    },
+    {
+      href: "/presets/calm",
+      title: "Calm",
+      desc: "Alpha/theta (~6–10 Hz) for relaxed awareness. Smooth carriers and subtle modulation.",
+    },
+    {
+      href: "/presets/focus",
+      title: "Focus",
+      desc: "Beta/SMR (~14–20 Hz) for concentration. Clear but moderate modulation with minimal ambience.",
+    },
+  ];
+  const listJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    itemListElement: items.map((it, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      url: it.href,
+      name: it.title,
+    })),
+  };
+  return (
+    <main className="px-6 py-16 max-w-4xl mx-auto">
+      <h1 className="text-3xl font-semibold text-slate-100 mb-6">Presets</h1>
+      <p className="text-slate-300/85 text-sm mb-8">
+        Pick a starting point and load it in the mixer. Adjust frequency,
+        carrier, and effects to taste. Keep overall volume comfortable.
+      </p>
+      <div className="grid gap-4 md:grid-cols-3">
+        {items.map((it) => (
+          <Link
+            key={it.href}
+            href={it.href}
+            prefetch
+            className="card spotlight rounded-lg p-5 ring-1 ring-white/5 hover:ring-teal-400/30 bg-[#121826]/60"
+          >
+            <div className="text-base font-semibold text-teal-300 mb-1">
+              {it.title}
+            </div>
+            <p className="text-[13px] text-slate-300/80">{it.desc}</p>
+          </Link>
+        ))}
+      </div>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(listJsonLd) }}
+      />
+    </main>
+  );
 }

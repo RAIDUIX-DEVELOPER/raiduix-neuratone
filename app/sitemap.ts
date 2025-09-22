@@ -1,6 +1,14 @@
 import type { MetadataRoute } from "next";
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+function getSiteUrl() {
+  const envUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (envUrl) return envUrl;
+  const vercelUrl = process.env.VERCEL_URL?.trim();
+  if (vercelUrl) return `https://${vercelUrl}`;
+  return "http://localhost:3000";
+}
+
+const SITE_URL = getSiteUrl();
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const routes = [
@@ -15,7 +23,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/learn/frequencies",
     "/learn/safety",
     "/faq",
-    "/api/facts",
   ];
   const now = new Date();
   return routes.map((path) => ({

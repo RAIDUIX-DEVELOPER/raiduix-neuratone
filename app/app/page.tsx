@@ -25,5 +25,37 @@ export const metadata: Metadata = {
   },
 };
 export default function AppDashboard() {
-  return <AppClient />;
+  return (
+    <>
+      {/* Visually hidden content for accessibility and crawlability */}
+      <section
+        style={{
+          position: "absolute",
+          width: "1px",
+          height: "1px",
+          padding: 0,
+          margin: "-1px",
+          overflow: "hidden",
+          clip: "rect(0, 0, 0, 0)",
+          clipPath: "inset(50%)",
+          border: 0,
+          whiteSpace: "nowrap",
+          pointerEvents: "none",
+        }}
+      >
+        <h1>NeuraTone Mixer — Build Your Soundscape</h1>
+        <p>
+          Layer binaural beats, isochronic pulses, and ambience with
+          professional audio effects. Use presets to start quickly, then tweak
+          frequency, carriers, and modulation depth live in your browser.
+        </p>
+        <nav>
+          <a href="/presets/calm">Calm preset</a>,
+          <a href="/presets/focus"> Focus preset</a>,
+          <a href="/presets/sleep"> Sleep preset</a>
+        </nav>
+      </section>
+      <AppClient />
+    </>
+  );
 }
