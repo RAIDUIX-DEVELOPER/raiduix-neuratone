@@ -20,6 +20,18 @@ export default function Home() {
             offers: { "@type": "Offer", price: 0, priceCurrency: "USD" },
             url: "/",
             publisher: { "@type": "Organization", name: "NeuraTone" },
+            description:
+              "Professional binaural beats and isochronic tones generator with 17 advanced audio effects including reverb, multi-band compression, and spatial processing",
+            featureList: [
+              "Binaural Beats Generation",
+              "Isochronic Tones",
+              "17 Professional Audio Effects",
+              "Advanced Reverb with Multi-tap Delays",
+              "Multi-Band Compressor",
+              "Spatial Audio Processing",
+              "Real-time Parameter Control",
+              "Layer-based Sound Design",
+            ],
           }),
         }}
       />
@@ -125,6 +137,75 @@ export default function Home() {
               </div>
             </Reveal>
           </div>
+
+          {/* Audio Effects Feature Highlight */}
+          <Reveal delay={0.3}>
+            <div className="card spotlight rounded-lg p-6 mt-12">
+              <h3 className="text-base font-semibold text-teal-300 mb-4">
+                Professional Audio Effects Library
+              </h3>
+              <p className="text-sm leading-relaxed text-slate-300/80 mb-4">
+                Enhance your soundscapes with 17 professional-grade audio
+                effects. From spatial reverb and multi-band compression to
+                creative modulation and filtering.
+              </p>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs text-slate-300/70">
+                <div>
+                  <div className="font-medium text-slate-300/90 mb-1">
+                    Spatial
+                  </div>
+                  <ul className="space-y-0.5">
+                    <li>Advanced Reverb</li>
+                    <li>Chorus</li>
+                    <li>Phaser</li>
+                    <li>Flanger</li>
+                  </ul>
+                </div>
+                <div>
+                  <div className="font-medium text-slate-300/90 mb-1">
+                    Dynamics
+                  </div>
+                  <ul className="space-y-0.5">
+                    <li>Multi-Band Compressor</li>
+                    <li>Gate</li>
+                    <li>Harmonic Exciter</li>
+                  </ul>
+                </div>
+                <div>
+                  <div className="font-medium text-slate-300/90 mb-1">
+                    Modulation
+                  </div>
+                  <ul className="space-y-0.5">
+                    <li>Tremolo</li>
+                    <li>Auto-Pan</li>
+                    <li>Ring Modulator</li>
+                  </ul>
+                </div>
+                <div>
+                  <div className="font-medium text-slate-300/90 mb-1">
+                    Filter & Synthesis
+                  </div>
+                  <ul className="space-y-0.5">
+                    <li>Acid Filter</li>
+                    <li>Filter Envelope</li>
+                    <li>Comb Filter</li>
+                    <li>Supersaw</li>
+                  </ul>
+                </div>
+              </div>
+              <div className="flex gap-2 mt-4">
+                <Link
+                  href={{ pathname: "/app" }}
+                  prefetch
+                  className="spotlight btn-shape text-[12px] px-3 py-1.5 ring-1 ring-white/5 hover:ring-teal-400/30 text-slate-200/85 hover:text-teal-100 bg-[#0b1220]/70"
+                  data-analytics-event="content_cta_click"
+                  data-analytics-label="try_audio_effects"
+                >
+                  Explore Effects Library
+                </Link>
+              </div>
+            </div>
+          </Reveal>
 
           {/* How To Use Guide (full width) */}
           <div className="grid gap-8 md:grid-cols-2 mt-14">
@@ -298,6 +379,35 @@ export default function Home() {
             <Reveal delay={0.4} className="h-full">
               <div className="card spotlight rounded-lg p-6 h-full flex flex-col">
                 <h3 className="text-base font-semibold text-teal-300 mb-2">
+                  Professional Audio Effects
+                </h3>
+                <p className="text-sm text-slate-300/80 mb-3">
+                  Layer advanced audio effects like reverb, chorus, and
+                  multi-band compression to create immersive soundscapes. Each
+                  effect offers real-time parameter control and seamless
+                  integration.
+                </p>
+                <ul className="text-xs space-y-1 text-slate-300/70 list-disc list-inside mb-4">
+                  <li>17 professional-grade effects</li>
+                  <li>Spatial processing & dynamics control</li>
+                  <li>Real-time parameter adjustment</li>
+                </ul>
+                <div className="flex gap-2 mt-auto">
+                  <Link
+                    href={{ pathname: "/app" }}
+                    prefetch
+                    className="spotlight btn-shape text-[12px] px-3 py-1.5 ring-1 ring-white/5 hover:ring-teal-400/30 text-slate-200/85 hover:text-teal-100 bg-[#0b1220]/70"
+                    data-analytics-event="learn_cta_click"
+                    data-analytics-label="try_audio_effects"
+                  >
+                    Try Effects
+                  </Link>
+                </div>
+              </div>
+            </Reveal>
+            <Reveal delay={0.5} className="h-full">
+              <div className="card spotlight rounded-lg p-6 h-full flex flex-col">
+                <h3 className="text-base font-semibold text-teal-300 mb-2">
                   Safety & best practices
                 </h3>
                 <p className="text-sm text-slate-300/80 mb-3">
@@ -436,6 +546,30 @@ export default function Home() {
                 </div>
               </div>
             </Reveal>
+            <Reveal delay={0.6} className="h-full">
+              <div className="card spotlight rounded-lg p-5 h-full flex flex-col">
+                <h3 className="text-sm font-semibold text-teal-300 mb-2">
+                  What audio effects are available?
+                </h3>
+                <p className="text-sm text-slate-300/80">
+                  NeuraTone includes 17 professional audio effects: spatial
+                  reverb, multi-band compression, chorus, phaser, flanger,
+                  filters, and more. Each effect integrates seamlessly with your
+                  layers.
+                </p>
+                <div className="flex gap-2 mt-auto">
+                  <Link
+                    href={{ pathname: "/app" }}
+                    prefetch
+                    className="spotlight btn-shape text-[12px] px-3 py-1.5 ring-1 ring-white/5 hover:ring-teal-400/30 text-slate-200/85 hover:text-teal-100 bg-[#0b1220]/70"
+                    data-analytics-event="faq_cta_click"
+                    data-analytics-label="try_effects_library"
+                  >
+                    Try Effects
+                  </Link>
+                </div>
+              </div>
+            </Reveal>
           </div>
         </div>
 
@@ -495,6 +629,14 @@ export default function Home() {
                   acceptedAnswer: {
                     "@type": "Answer",
                     text: "Try Calm for a balanced start, Focus for structured work, and Sleep for wind-down. Fine-tune volumes in the mixer.",
+                  },
+                },
+                {
+                  "@type": "Question",
+                  name: "What audio effects are available?",
+                  acceptedAnswer: {
+                    "@type": "Answer",
+                    text: "NeuraTone includes 17 professional audio effects: spatial reverb, multi-band compression, chorus, phaser, flanger, filters, and more. Each effect integrates seamlessly with your layers for immersive soundscape creation.",
                   },
                 },
               ],

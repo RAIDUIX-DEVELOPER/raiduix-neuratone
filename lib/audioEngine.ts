@@ -5,11 +5,67 @@ import {
   type NoiseNodeHandle,
   type NoiseType,
 } from "./effects";
+import { createAutoPanNode, type AutoPanNodeHandle } from "./effects/autopan";
+import { createRingModNode, type RingModNodeHandle } from "./effects/ringmod";
+import { createTremoloNode, type TremoloNodeHandle } from "./effects/tremolo";
+import { createChorusNode, type ChorusNodeHandle } from "./effects/chorus";
+import { createFlangerNode, type FlangerNodeHandle } from "./effects/flanger";
+import { createPhaserNode, type PhaserNodeHandle } from "./effects/phaser";
+import {
+  createPingPongDelayNode,
+  type PingPongDelayNodeHandle,
+} from "./effects/pingpong";
+import {
+  createCombFilterNode,
+  type CombFilterNodeHandle,
+} from "./effects/combfilter";
+import {
+  createAcidFilterNode,
+  type AcidFilterNodeHandle,
+} from "./effects/acidfilter";
+import {
+  createGateEffectNode,
+  type GateEffectNodeHandle,
+} from "./effects/gate";
+import {
+  createHarmonicExciterNode,
+  type HarmonicExciterNodeHandle,
+} from "./effects/harmonicexciter";
 import { getMasterBus } from "./audioBus";
 
 export type LayerType = "binaural" | "isochronic" | "ambient";
 
-export type LayerEffectKind = "noise" | "automation";
+// Union type for all effect node handles
+export type EffectNodeHandle =
+  | NoiseNodeHandle
+  | AutoPanNodeHandle
+  | RingModNodeHandle
+  | TremoloNodeHandle
+  | ChorusNodeHandle
+  | FlangerNodeHandle
+  | PhaserNodeHandle
+  | PingPongDelayNodeHandle
+  | CombFilterNodeHandle
+  | AcidFilterNodeHandle
+  | GateEffectNodeHandle
+  | HarmonicExciterNodeHandle;
+
+export type LayerEffectKind =
+  | "noise"
+  | "automation"
+  | "autopan"
+  | "ringmod"
+  | "tremolo"
+  | "chorus"
+  | "flanger"
+  | "phaser"
+  | "pingpong"
+  | "combfilter"
+  | "acidfilter"
+  | "gate"
+  | "harmonicexciter"
+  | "reverb"
+  | "multibandcompressor";
 
 export interface NoiseEffect {
   id: string;
@@ -31,7 +87,143 @@ export interface ParamAutomationEffect {
   durationSec: number; // seconds
 }
 
-export type LayerEffect = NoiseEffect | ParamAutomationEffect; // extendable
+export interface AutoPanEffect {
+  id: string;
+  kind: "autopan";
+  rate: number; // Hz - how fast the pan cycles
+  depth: number; // 0..1 - pan range multiplier
+}
+
+export interface RingModEffect {
+  id: string;
+  kind: "ringmod";
+  frequency: number; // Hz - modulator frequency
+  intensity: number; // 0..1 - ring modulation intensity
+}
+
+export interface TremoloEffect {
+  id: string;
+  kind: "tremolo";
+  rate: number; // Hz - tremolo rate
+  depth: number; // 0..100 - tremolo depth percentage
+}
+
+export interface ChorusEffect {
+  id: string;
+  kind: "chorus";
+  rate: number; // Hz - LFO rate
+  depth: number; // milliseconds - delay modulation depth
+  mix: number; // 0..100 - wet/dry mix percentage
+  feedback: number; // 0..100 - feedback percentage
+  stereoWidth: number; // 0..100 - stereo width percentage
+  damping: number; // Hz - high frequency damping
+}
+
+export interface FlangerEffect {
+  id: string;
+  kind: "flanger";
+  rate: number; // Hz - LFO rate
+  depth: number; // milliseconds - delay modulation depth
+  feedback: number; // 0..100 - feedback percentage
+  mix: number; // 0..100 - wet/dry mix percentage
+}
+
+export interface PhaserEffect {
+  id: string;
+  kind: "phaser";
+  rate: number; // Hz - LFO rate
+  depth: number; // 0..100 - modulation depth percentage
+  feedback: number; // 0..100 - feedback percentage
+  stages: number; // number of all-pass filter stages
+}
+
+export interface PingPongEffect {
+  id: string;
+  kind: "pingpong";
+  delayTime: number; // seconds - delay time
+  feedback: number; // 0..100 - feedback percentage
+  mix: number; // 0..100 - wet/dry mix percentage
+}
+
+export interface CombFilterEffect {
+  id: string;
+  kind: "combfilter";
+  delayTime: number; // seconds - comb delay time
+  resonance: number; // 0..100 - resonance percentage
+  mix: number; // 0..100 - wet/dry mix percentage
+}
+
+export interface AcidFilterEffect {
+  id: string;
+  kind: "acidfilter";
+  cutoff: number; // Hz - filter cutoff frequency
+  resonance: number; // 0..100 - filter resonance percentage
+  envelope: number; // 0..100 - envelope amount percentage
+  rate: number; // Hz - LFO rate
+}
+
+export interface GateEffect {
+  id: string;
+  kind: "gate";
+  rate: number; // Hz - gate rate
+  depth: number; // 0..100 - gate depth percentage
+  attack: number; // seconds - gate attack time
+  release: number; // seconds - gate release time
+}
+
+export interface HarmonicExciterEffect {
+  id: string;
+  kind: "harmonicexciter";
+  drive: number; // 0..100 - harmonic drive percentage
+  mix: number; // 0..100 - wet/dry mix percentage
+  frequency: number; // Hz - frequency focus
+}
+
+export interface ReverbEffect {
+  id: string;
+  kind: "reverb";
+  roomSize: number; // 0..100 - room size percentage
+  damping: number; // 0..100 - damping percentage
+  diffusion: number; // 0..100 - diffusion percentage
+  density: number; // 0..100 - density percentage
+  predelay: number; // milliseconds - pre-delay time
+  width: number; // 0..100 - stereo width percentage
+  mix: number; // 0..100 - wet/dry mix percentage
+  modulation: number; // 0..100 - modulation depth percentage
+}
+
+export interface MultiBandCompressorEffect {
+  id: string;
+  kind: "multibandcompressor";
+  crossoverLow: number; // Hz - low/mid crossover frequency
+  crossoverHigh: number; // Hz - mid/high crossover frequency
+  lowRatio: number; // compression ratio for low band
+  midRatio: number; // compression ratio for mid band
+  highRatio: number; // compression ratio for high band
+  lowThreshold: number; // dB - threshold for low band
+  midThreshold: number; // dB - threshold for mid band
+  highThreshold: number; // dB - threshold for high band
+  lowGain: number; // dB - makeup gain for low band
+  midGain: number; // dB - makeup gain for mid band
+  highGain: number; // dB - makeup gain for high band
+}
+
+export type LayerEffect =
+  | NoiseEffect
+  | ParamAutomationEffect
+  | AutoPanEffect
+  | RingModEffect
+  | TremoloEffect
+  | ChorusEffect
+  | FlangerEffect
+  | PhaserEffect
+  | PingPongEffect
+  | CombFilterEffect
+  | AcidFilterEffect
+  | GateEffect
+  | HarmonicExciterEffect
+  | ReverbEffect
+  | MultiBandCompressorEffect;
 export interface SoundLayer {
   id: string;
   type: LayerType;
@@ -102,7 +294,23 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
   let rightGain: GainNode | null = null;
   let stereoPan: StereoPannerNode | null = null;
   let analyserNode: AnalyserNode | null = null;
+  // Effect chain for audio processing
+  let effectChainInput: AudioNode | null = null;
+  let effectChainOutput: AudioNode | null = null;
+  // The node after effectChainOutput (e.g., bus.input or analyserNode)
+  let effectChainDownstream: AudioNode | null = null;
   const effectHandles = new Map<string, NoiseNodeHandle>();
+  const autopanHandles = new Map<string, AutoPanNodeHandle>();
+  const ringmodHandles = new Map<string, RingModNodeHandle>();
+  const tremoloHandles = new Map<string, TremoloNodeHandle>();
+  const chorusHandles = new Map<string, ChorusNodeHandle>();
+  const flangerHandles = new Map<string, FlangerNodeHandle>();
+  const phaserHandles = new Map<string, PhaserNodeHandle>();
+  const pingpongHandles = new Map<string, PingPongDelayNodeHandle>();
+  const combfilterHandles = new Map<string, CombFilterNodeHandle>();
+  const acidfilterHandles = new Map<string, AcidFilterNodeHandle>();
+  const gateHandles = new Map<string, GateEffectNodeHandle>();
+  const harmonicexciterHandles = new Map<string, HarmonicExciterNodeHandle>();
   const automationTimers = new Map<string, number>();
   function computePair(base: number, beat: number) {
     const safeBase = Math.max(1, base || 0);
@@ -127,6 +335,8 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
     const list = effects || [];
     const byId = new Map<string, LayerEffect>();
     list.forEach((fx) => byId.set(fx.id, fx));
+
+    // Cleanup removed effects from all handle maps
     for (const [id, h] of effectHandles.entries()) {
       if (!byId.has(id)) {
         try {
@@ -138,6 +348,107 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
         effectHandles.delete(id);
       }
     }
+    for (const [id, h] of autopanHandles.entries()) {
+      if (!byId.has(id)) {
+        try {
+          h.disconnect();
+        } catch {}
+        try {
+          h.dispose();
+        } catch {}
+        autopanHandles.delete(id);
+      }
+    }
+    for (const [id, h] of ringmodHandles.entries()) {
+      if (!byId.has(id)) {
+        try {
+          h.disconnect();
+        } catch {}
+        try {
+          h.dispose();
+        } catch {}
+        ringmodHandles.delete(id);
+      }
+    }
+    for (const [id, h] of tremoloHandles.entries()) {
+      if (!byId.has(id)) {
+        try {
+          h.stop();
+          h.dispose();
+        } catch {}
+        tremoloHandles.delete(id);
+      }
+    }
+    for (const [id, h] of chorusHandles.entries()) {
+      if (!byId.has(id)) {
+        try {
+          h.stop();
+          h.dispose();
+        } catch {}
+        chorusHandles.delete(id);
+      }
+    }
+    for (const [id, h] of flangerHandles.entries()) {
+      if (!byId.has(id)) {
+        try {
+          h.stop();
+          h.dispose();
+        } catch {}
+        flangerHandles.delete(id);
+      }
+    }
+    for (const [id, h] of phaserHandles.entries()) {
+      if (!byId.has(id)) {
+        try {
+          h.stop();
+          h.dispose();
+        } catch {}
+        phaserHandles.delete(id);
+      }
+    }
+    for (const [id, h] of pingpongHandles.entries()) {
+      if (!byId.has(id)) {
+        try {
+          h.dispose();
+        } catch {}
+        pingpongHandles.delete(id);
+      }
+    }
+    for (const [id, h] of combfilterHandles.entries()) {
+      if (!byId.has(id)) {
+        try {
+          h.dispose();
+        } catch {}
+        combfilterHandles.delete(id);
+      }
+    }
+    for (const [id, h] of acidfilterHandles.entries()) {
+      if (!byId.has(id)) {
+        try {
+          h.stop();
+          h.dispose();
+        } catch {}
+        acidfilterHandles.delete(id);
+      }
+    }
+    for (const [id, h] of gateHandles.entries()) {
+      if (!byId.has(id)) {
+        try {
+          h.stop();
+          h.dispose();
+        } catch {}
+        gateHandles.delete(id);
+      }
+    }
+    for (const [id, h] of harmonicexciterHandles.entries()) {
+      if (!byId.has(id)) {
+        try {
+          h.dispose();
+        } catch {}
+        harmonicexciterHandles.delete(id);
+      }
+    }
+
     // Clear any automations that were removed
     for (const [id, timer] of automationTimers.entries()) {
       if (!byId.has(id)) {
@@ -241,9 +552,349 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
           }
         }, 16);
         automationTimers.set(exId, timer);
+      } else if (fx.kind === "autopan") {
+        const existing = autopanHandles.get(fx.id);
+        if (!existing) {
+          const handle = await createAutoPanNode(ctxLocal, {
+            rate: fx.rate,
+            depth: fx.depth,
+          });
+          autopanHandles.set(fx.id, handle);
+          handle.start();
+        } else {
+          existing.setRate(fx.rate);
+          existing.setDepth(fx.depth);
+          // Chaining handled in rebuildEffectChain; no direct bus connections here
+        }
+      } else if (fx.kind === "ringmod") {
+        const existing = ringmodHandles.get(fx.id);
+        if (!existing) {
+          const handle = await createRingModNode(ctxLocal, {
+            frequency: fx.frequency,
+            intensity: fx.intensity,
+          });
+          ringmodHandles.set(fx.id, handle);
+          handle.start();
+        } else {
+          existing.setFrequency(fx.frequency);
+          existing.setIntensity(fx.intensity);
+          // Chaining handled in rebuildEffectChain; no direct bus connections here
+        }
+      } else if (fx.kind === "tremolo") {
+        const existing = tremoloHandles.get(fx.id);
+        if (!existing) {
+          const handle = createTremoloNode(
+            ctxLocal,
+            fx.rate ?? 4,
+            fx.depth ?? 50
+          );
+          tremoloHandles.set(fx.id, handle);
+          // Only start if layer is playing
+          if (playing) {
+            handle.start();
+          }
+        } else {
+          existing.setRate(fx.rate ?? 4);
+          existing.setDepth(fx.depth ?? 50);
+          // Effect state will be managed by effect chain rebuilding and stop method
+        }
+      } else if (fx.kind === "chorus") {
+        const existing = chorusHandles.get(fx.id);
+        if (!existing) {
+          const handle = createChorusNode(
+            ctxLocal,
+            fx.rate ?? 1,
+            fx.depth ?? 50,
+            fx.mix ?? 50,
+            fx.feedback ?? 0,
+            fx.stereoWidth ?? 100,
+            fx.damping ?? 0
+          );
+          chorusHandles.set(fx.id, handle);
+          // Only start if layer is playing
+          if (playing) {
+            handle.start();
+          }
+        } else {
+          existing.setRate(fx.rate ?? 1);
+          existing.setDepth(fx.depth ?? 50);
+          existing.setMix(fx.mix ?? 50);
+          existing.setFeedback(fx.feedback ?? 0);
+          existing.setStereoWidth(fx.stereoWidth ?? 100);
+          existing.setDamping(fx.damping ?? 0);
+          // Effect state will be managed by effect chain rebuilding and stop method
+        }
+      } else if (fx.kind === "flanger") {
+        const existing = flangerHandles.get(fx.id);
+        if (!existing) {
+          const handle = createFlangerNode(
+            ctxLocal,
+            fx.rate ?? 0.5,
+            fx.depth ?? 50,
+            fx.feedback ?? 0,
+            fx.mix ?? 50
+          );
+          flangerHandles.set(fx.id, handle);
+          if (playing) {
+            handle.start();
+          }
+        } else {
+          existing.setRate(fx.rate ?? 0.5);
+          existing.setDepth(fx.depth ?? 50);
+          existing.setFeedback(fx.feedback ?? 0);
+          existing.setMix(fx.mix ?? 50);
+          // Effect state will be managed by effect chain rebuilding
+        }
+      } else if (fx.kind === "phaser") {
+        const existing = phaserHandles.get(fx.id);
+        if (!existing) {
+          const handle = createPhaserNode(
+            ctxLocal,
+            fx.rate,
+            fx.depth,
+            fx.feedback,
+            fx.stages
+          );
+          phaserHandles.set(fx.id, handle);
+          if (playing) {
+            handle.start();
+          }
+        } else {
+          existing.setRate(fx.rate ?? 0.5);
+          existing.setDepth(fx.depth ?? 50);
+          existing.setFeedback(fx.feedback ?? 0);
+          existing.setStages(fx.stages ?? 4);
+          // Effect state will be managed by effect chain rebuilding
+        }
+      } else if (fx.kind === "pingpong") {
+        const existing = pingpongHandles.get(fx.id);
+        if (!existing) {
+          const handle = createPingPongDelayNode(
+            ctxLocal,
+            fx.delayTime,
+            fx.feedback,
+            fx.mix
+          );
+          pingpongHandles.set(fx.id, handle);
+        } else {
+          existing.setTime(fx.delayTime);
+          existing.setFeedback(fx.feedback);
+          existing.setMix(fx.mix);
+        }
+      } else if (fx.kind === "combfilter") {
+        const existing = combfilterHandles.get(fx.id);
+        if (!existing) {
+          // CombFilter uses frequency, not delayTime
+          const handle = createCombFilterNode(
+            ctxLocal,
+            fx.delayTime * 1000,
+            fx.resonance,
+            fx.mix
+          );
+          combfilterHandles.set(fx.id, handle);
+        } else {
+          existing.setFrequency(fx.delayTime * 1000); // Convert delay time to frequency
+          existing.setResonance(fx.resonance);
+          existing.setMix(fx.mix);
+        }
+      } else if (fx.kind === "acidfilter") {
+        const existing = acidfilterHandles.get(fx.id);
+        if (!existing) {
+          const handle = createAcidFilterNode(
+            ctxLocal,
+            fx.cutoff,
+            fx.resonance,
+            fx.rate,
+            fx.envelope
+          );
+          acidfilterHandles.set(fx.id, handle);
+          if (playing) {
+            handle.start();
+          }
+        } else {
+          existing.setCutoff(fx.cutoff);
+          existing.setResonance(fx.resonance);
+          existing.setLfoRate(fx.rate);
+          existing.setLfoDepth(fx.envelope);
+          // Effect state will be managed by effect chain rebuilding
+        }
+      } else if (fx.kind === "gate") {
+        const existing = gateHandles.get(fx.id);
+        if (!existing) {
+          const handle = createGateEffectNode(
+            ctxLocal as any,
+            fx.rate,
+            fx.depth,
+            fx.attack,
+            fx.release
+          );
+          gateHandles.set(fx.id, handle);
+          if (playing) {
+            handle.start();
+          }
+        } else {
+          existing.setRate(fx.rate ?? 4);
+          existing.setThreshold(fx.depth ?? 50); // Gate uses threshold instead of depth
+          existing.setAttack(fx.attack ?? 10);
+          existing.setRelease(fx.release ?? 100);
+          // Effect state will be managed by effect chain rebuilding
+        }
+      } else if (fx.kind === "harmonicexciter") {
+        const existing = harmonicexciterHandles.get(fx.id);
+        if (!existing) {
+          // HarmonicExciter signature: (context, drive, harmonics, tone, mix)
+          const handle = createHarmonicExciterNode(
+            ctxLocal as any,
+            fx.drive,
+            fx.frequency,
+            fx.mix,
+            fx.mix
+          );
+          harmonicexciterHandles.set(fx.id, handle);
+        } else {
+          existing.setDrive(fx.drive);
+          existing.setMix(fx.mix);
+          existing.setTone(fx.frequency); // Use setTone instead of setFrequency
+        }
+      }
+    }
+
+    // Always rebuild the effects chain to ensure proper connectivity
+    // The chain setup doesn't depend on playing state, only on available effects
+    rebuildEffectChain(list);
+  }
+
+  function rebuildEffectChain(effects: LayerEffect[]) {
+    if (!effectChainInput || !effectChainOutput || !ctx) return;
+
+    // Disconnect all existing effect connections first
+    try {
+      effectChainInput.disconnect();
+    } catch {}
+
+    // Disconnect effect outputs from their current chain destinations (preserve internal wiring)
+    for (const handle of tremoloHandles.values()) {
+      try {
+        if (handle.outputGain) handle.outputGain.disconnect();
+      } catch {}
+    }
+    for (const handle of chorusHandles.values()) {
+      try {
+        if (handle.outputGain) handle.outputGain.disconnect();
+      } catch {}
+    }
+    for (const handle of flangerHandles.values()) {
+      try {
+        if (handle.outputGain) handle.outputGain.disconnect();
+      } catch {}
+    }
+    for (const handle of phaserHandles.values()) {
+      try {
+        if (handle.outputGain) handle.outputGain.disconnect();
+      } catch {}
+    }
+    for (const handle of pingpongHandles.values()) {
+      try {
+        if (handle.outputGain) handle.outputGain.disconnect();
+      } catch {}
+    }
+    for (const handle of combfilterHandles.values()) {
+      try {
+        if (handle.outputGain) handle.outputGain.disconnect();
+      } catch {}
+    }
+    for (const handle of acidfilterHandles.values()) {
+      try {
+        if (handle.outputGain) handle.outputGain.disconnect();
+      } catch {}
+    }
+    for (const handle of gateHandles.values()) {
+      try {
+        if (handle.outputGain) handle.outputGain.disconnect();
+      } catch {}
+    }
+    for (const handle of harmonicexciterHandles.values()) {
+      try {
+        if (handle.outputGain) handle.outputGain.disconnect();
+      } catch {}
+    }
+    // Also detach autopan and ringmod outputs from prior chain connections
+    for (const handle of autopanHandles.values()) {
+      try {
+        if (handle.outputGain) handle.outputGain.disconnect();
+      } catch {}
+    }
+    for (const handle of ringmodHandles.values()) {
+      try {
+        if (handle.outputGain) handle.outputGain.disconnect();
+      } catch {}
+    }
+
+    let currentNode: AudioNode = effectChainInput;
+    let effectsWereChained = false;
+
+    // Chain all active effects in order
+    for (const fx of effects) {
+      let effectHandle: any = null;
+
+      // Get the effect handle based on type
+      if (fx.kind === "tremolo") {
+        effectHandle = tremoloHandles.get(fx.id);
+      } else if (fx.kind === "chorus") {
+        effectHandle = chorusHandles.get(fx.id);
+      } else if (fx.kind === "flanger") {
+        effectHandle = flangerHandles.get(fx.id);
+      } else if (fx.kind === "phaser") {
+        effectHandle = phaserHandles.get(fx.id);
+      } else if (fx.kind === "pingpong") {
+        effectHandle = pingpongHandles.get(fx.id);
+      } else if (fx.kind === "combfilter") {
+        effectHandle = combfilterHandles.get(fx.id);
+      } else if (fx.kind === "acidfilter") {
+        effectHandle = acidfilterHandles.get(fx.id);
+      } else if (fx.kind === "gate") {
+        effectHandle = gateHandles.get(fx.id);
+      } else if (fx.kind === "harmonicexciter") {
+        effectHandle = harmonicexciterHandles.get(fx.id);
+      } else if (fx.kind === "autopan") {
+        effectHandle = autopanHandles.get(fx.id);
+      } else if (fx.kind === "ringmod") {
+        effectHandle = ringmodHandles.get(fx.id);
+      }
+      // Note: noise is handled differently (global effect)
+
+      // Insert effect into the chain if it has input/output nodes
+      if (effectHandle && effectHandle.inputGain && effectHandle.outputGain) {
+        try {
+          currentNode.connect(effectHandle.inputGain);
+          currentNode = effectHandle.outputGain;
+          effectsWereChained = true;
+        } catch (e) {
+          console.warn(`Failed to chain effect ${fx.kind}:`, e);
+        }
+      }
+    }
+
+    // If no effects were chained (e.g., only global effects like noise),
+    // ensure we have a direct connection to maintain audio flow
+    if (!effectsWereChained && currentNode === effectChainInput) {
+      console.log("No chainable effects found, maintaining direct connection");
+    }
+
+    // Connect the final node to the output
+    try {
+      currentNode.connect(effectChainOutput);
+    } catch (e) {
+      console.warn("Failed to connect effect chain output:", e);
+      // If chaining failed, ensure we at least have a direct connection
+      try {
+        effectChainInput.connect(effectChainOutput);
+      } catch (fallbackError) {
+        console.warn("Failed to create fallback connection:", fallbackError);
       }
     }
   }
+
   async function ensure() {
     if (!tone) {
       tone = await loadTone();
@@ -262,7 +913,7 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
         leftGainTone = new tone.Gain(1);
         rightGainTone = new tone.Gain(1);
         merger = new tone.Merge();
-        volNode = new tone.Volume(tone.gainToDb(layer.volume));
+        volNode = new tone.Volume(-60); // Start silent, fade-in will ramp up
         left.connect(leftGainTone).connect(merger, 0, 0);
         right.connect(rightGainTone).connect(merger, 0, 1);
         analyserToneFft = new tone.Analyser("fft", 1024);
@@ -276,7 +927,23 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
           merger.connect(volNode);
           (volNode as any).connect?.(stereoPan);
           stereoPan.connect(analyserToneFft as any);
-          stereoPan.connect(bus.input);
+
+          // Create an effects processing chain before master bus
+          const effectsInput = (ctx || getCtx()!)!.createGain();
+          const effectsOutput = (ctx || getCtx()!)!.createGain();
+          effectsInput.gain.value = 1;
+          effectsOutput.gain.value = 1;
+
+          // Default routing: stereoPan -> effectsInput -> effectsOutput -> master bus
+          // Effects will be inserted between effectsInput and effectsOutput
+          stereoPan.connect(effectsInput);
+          effectsInput.connect(effectsOutput);
+          effectsOutput.connect(bus.input);
+          effectChainDownstream = bus.input;
+
+          // Store references for effect chain building
+          effectChainInput = effectsInput;
+          effectChainOutput = effectsOutput;
           volNode.connect?.(analyserToneWave);
         } catch {}
         return;
@@ -296,7 +963,7 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
       leftGainTone = new tone.Gain(1);
       rightGainTone = new tone.Gain(1);
       merger = new tone.Merge();
-      volNode = new tone.Volume(tone.gainToDb(layer.volume));
+      volNode = new tone.Volume(-60); // Start silent, fade-in will ramp up
       left.connect(leftGainTone).connect(merger, 0, 0);
       right.connect(rightGainTone).connect(merger, 0, 1);
       analyserToneFft = new tone.Analyser("fft", 1024);
@@ -308,7 +975,23 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
         merger.connect(volNode);
         (volNode as any).connect?.(stereoPan);
         stereoPan.connect(analyserToneFft as any);
-        stereoPan.connect(bus.input);
+
+        // Create an effects processing chain before master bus
+        const effectsInput = (ctx || getCtx()!)!.createGain();
+        const effectsOutput = (ctx || getCtx()!)!.createGain();
+        effectsInput.gain.value = 1;
+        effectsOutput.gain.value = 1;
+
+        // Default routing: stereoPan -> effectsInput -> effectsOutput -> master bus
+        // Effects will be inserted between effectsInput and effectsOutput
+        stereoPan.connect(effectsInput);
+        effectsInput.connect(effectsOutput);
+        effectsOutput.connect(bus.input);
+        effectChainDownstream = bus.input;
+
+        // Store references for effect chain building
+        effectChainInput = effectsInput;
+        effectChainOutput = effectsOutput;
         volNode.connect?.(analyserToneWave);
       } catch {}
       return;
@@ -337,11 +1020,25 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
       analyserNode = ctx.createAnalyser();
       analyserNode.fftSize = 2048;
       const bus = getMasterBus(ctx);
-      mergerNode
-        .connect(gain)
-        .connect(stereoPan)
-        .connect(analyserNode)
-        .connect(bus.input);
+
+      // Create an effects processing chain before master bus
+      const effectsInput = ctx.createGain();
+      const effectsOutput = ctx.createGain();
+      effectsInput.gain.value = 1;
+      effectsOutput.gain.value = 1;
+
+      // Store references for effect chain building
+      effectChainInput = effectsInput;
+      effectChainOutput = effectsOutput;
+
+      // Default routing: layer -> effects chain -> analyser -> master bus
+      // Effects will be inserted between effectsInput and effectsOutput
+      mergerNode.connect(gain).connect(stereoPan).connect(effectsInput);
+
+      effectsInput.connect(effectsOutput);
+      effectsOutput.connect(analyserNode);
+      effectChainDownstream = analyserNode;
+      analyserNode.connect(bus.input);
     }
   }
   return {
@@ -362,14 +1059,28 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
         right.start();
         // Gentle fade in to avoid clicks
         try {
-          if (ctx && gain) {
-            const target = layer.volume;
-            gain.gain.setValueAtTime(0, ctx.currentTime);
-            gain.gain.linearRampToValueAtTime(target, ctx.currentTime + 0.02);
+          if (ctx && volNode) {
+            const targetDb = tone.gainToDb(layer.volume);
+            // Start from -60dB (effectively silent) and ramp to target
+            volNode.volume.setValueAtTime(-60, ctx.currentTime);
+            volNode.volume.linearRampToValueAtTime(
+              targetDb,
+              ctx.currentTime + 0.02
+            );
           }
         } catch {}
         playing = true;
-        await reconcileEffects(layer.effects);
+        // Only reconcile effects if they exist and we're not already processing them
+        if (layer.effects && layer.effects.length > 0) {
+          await reconcileEffects(layer.effects);
+        }
+        // Ensure single downstream connection
+        try {
+          if (effectChainOutput && effectChainDownstream) {
+            effectChainOutput.disconnect();
+            effectChainOutput.connect(effectChainDownstream);
+          }
+        } catch {}
       } else if (lOsc && rOsc && ctx) {
         ctx.resume();
         try {
@@ -399,11 +1110,21 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
         try {
           if (ctx && gain) {
             const target = layer.volume;
-            gain.gain.setValueAtTime(0, ctx.currentTime);
+            gain.gain.setValueAtTime(0.0001, ctx.currentTime);
             gain.gain.linearRampToValueAtTime(target, ctx.currentTime + 0.02);
           }
         } catch {}
-        await reconcileEffects(layer.effects);
+        // Only reconcile effects if they exist and we're not already processing them
+        if (layer.effects && layer.effects.length > 0) {
+          await reconcileEffects(layer.effects);
+        }
+        // Ensure single downstream connection
+        try {
+          if (effectChainOutput && effectChainDownstream) {
+            effectChainOutput.disconnect();
+            effectChainOutput.connect(effectChainDownstream);
+          }
+        } catch {}
       }
     },
     stop: () => {
@@ -411,10 +1132,13 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
       if (left && right) {
         // fade out then stop
         try {
-          if (ctx && gain) {
-            gain.gain.cancelScheduledValues(ctx.currentTime);
-            gain.gain.setValueAtTime(gain.gain.value, ctx.currentTime);
-            gain.gain.linearRampToValueAtTime(0.0001, ctx.currentTime + 0.03);
+          if (ctx && volNode) {
+            volNode.volume.cancelScheduledValues(ctx.currentTime);
+            volNode.volume.setValueAtTime(
+              volNode.volume.value,
+              ctx.currentTime
+            );
+            volNode.volume.linearRampToValueAtTime(-60, ctx.currentTime + 0.03);
           }
         } catch {}
         setTimeout(() => {
@@ -440,11 +1164,112 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
         lOsc = null;
         rOsc = null;
       }
+
+      // Properly disconnect and stop all effect types
       for (const h of effectHandles.values()) {
         try {
           h.disconnect();
         } catch {}
       }
+      for (const h of autopanHandles.values()) {
+        try {
+          h.stop?.();
+        } catch {}
+        try {
+          h.outputGain?.disconnect();
+        } catch {}
+      }
+      for (const h of ringmodHandles.values()) {
+        try {
+          h.stop?.();
+        } catch {}
+        try {
+          h.outputGain?.disconnect();
+        } catch {}
+      }
+      for (const h of tremoloHandles.values()) {
+        try {
+          h.stop();
+        } catch {}
+        try {
+          h.outputGain?.disconnect();
+        } catch {}
+      }
+      for (const h of chorusHandles.values()) {
+        try {
+          h.stop();
+        } catch {}
+        try {
+          h.outputGain?.disconnect();
+        } catch {}
+      }
+      for (const h of flangerHandles.values()) {
+        try {
+          h.stop();
+        } catch {}
+        try {
+          h.outputGain?.disconnect();
+        } catch {}
+      }
+      for (const h of phaserHandles.values()) {
+        try {
+          h.stop();
+        } catch {}
+        try {
+          h.outputGain?.disconnect();
+        } catch {}
+      }
+      for (const h of pingpongHandles.values()) {
+        try {
+          h.stop();
+        } catch {}
+        try {
+          h.outputGain?.disconnect();
+        } catch {}
+      }
+      for (const h of combfilterHandles.values()) {
+        try {
+          h.stop();
+        } catch {}
+        try {
+          h.outputGain?.disconnect();
+        } catch {}
+      }
+      for (const h of acidfilterHandles.values()) {
+        try {
+          h.stop();
+        } catch {}
+        try {
+          h.outputGain?.disconnect();
+        } catch {}
+      }
+      for (const h of gateHandles.values()) {
+        try {
+          h.stop();
+        } catch {}
+        try {
+          h.outputGain?.disconnect();
+        } catch {}
+      }
+      for (const h of harmonicexciterHandles.values()) {
+        try {
+          h.stop();
+        } catch {}
+        try {
+          h.outputGain?.disconnect();
+        } catch {}
+      }
+
+      // Reset effect chain by disconnecting endpoints completely
+      try {
+        if (effectChainInput) effectChainInput.disconnect();
+      } catch {}
+      try {
+        if (effectChainOutput) effectChainOutput.disconnect();
+      } catch {}
+      // Also sever any explicit downstream reference
+      effectChainDownstream = null;
+
       for (const id of automationTimers.values()) {
         try {
           clearInterval(id);
@@ -588,6 +1413,8 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
       analyserNode?.disconnect();
       leftGain?.disconnect();
       rightGain?.disconnect();
+
+      // Dispose all effect types
       for (const h of effectHandles.values()) {
         try {
           h.disconnect();
@@ -596,7 +1423,81 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
           h.dispose();
         } catch {}
       }
+      for (const h of autopanHandles.values()) {
+        try {
+          h.disconnect();
+        } catch {}
+        try {
+          h.dispose();
+        } catch {}
+      }
+      for (const h of ringmodHandles.values()) {
+        try {
+          h.disconnect();
+        } catch {}
+        try {
+          h.dispose();
+        } catch {}
+      }
+      for (const h of tremoloHandles.values()) {
+        try {
+          h.dispose();
+        } catch {}
+      }
+      for (const h of chorusHandles.values()) {
+        try {
+          h.dispose();
+        } catch {}
+      }
+      for (const h of flangerHandles.values()) {
+        try {
+          h.dispose();
+        } catch {}
+      }
+      for (const h of phaserHandles.values()) {
+        try {
+          h.dispose();
+        } catch {}
+      }
+      for (const h of pingpongHandles.values()) {
+        try {
+          h.dispose();
+        } catch {}
+      }
+      for (const h of combfilterHandles.values()) {
+        try {
+          h.dispose();
+        } catch {}
+      }
+      for (const h of acidfilterHandles.values()) {
+        try {
+          h.dispose();
+        } catch {}
+      }
+      for (const h of gateHandles.values()) {
+        try {
+          h.dispose();
+        } catch {}
+      }
+      for (const h of harmonicexciterHandles.values()) {
+        try {
+          h.dispose();
+        } catch {}
+      }
+
       effectHandles.clear();
+      autopanHandles.clear();
+      ringmodHandles.clear();
+      tremoloHandles.clear();
+      chorusHandles.clear();
+      flangerHandles.clear();
+      phaserHandles.clear();
+      pingpongHandles.clear();
+      combfilterHandles.clear();
+      acidfilterHandles.clear();
+      gateHandles.clear();
+      harmonicexciterHandles.clear();
+
       for (const id of automationTimers.values()) {
         try {
           clearInterval(id);
@@ -655,6 +1556,18 @@ export function createIsochronic(layer: SoundLayer): EngineHandle {
   let stereo: StereoPannerNode | null = null;
   let analyserNode: AnalyserNode | null = null;
   const effectHandles = new Map<string, NoiseNodeHandle>();
+  const autopanHandles = new Map<string, AutoPanNodeHandle>();
+  const ringmodHandles = new Map<string, RingModNodeHandle>();
+  const tremoloHandles = new Map<string, TremoloNodeHandle>();
+  const chorusHandles = new Map<string, ChorusNodeHandle>();
+  const flangerHandles = new Map<string, FlangerNodeHandle>();
+  const phaserHandles = new Map<string, PhaserNodeHandle>();
+  const pingpongHandles = new Map<string, PingPongDelayNodeHandle>();
+  const combfilterHandles = new Map<string, CombFilterNodeHandle>();
+  const acidfilterHandles = new Map<string, AcidFilterNodeHandle>();
+  const gateHandles = new Map<string, GateEffectNodeHandle>();
+  const harmonicexciterHandles = new Map<string, HarmonicExciterNodeHandle>();
+  const automationTimers = new Map<string, number>();
   async function reconcileEffects(effects?: LayerEffect[]) {
     const list = effects || [];
     const byId = new Map<string, LayerEffect>();
@@ -715,7 +1628,7 @@ export function createIsochronic(layer: SoundLayer): EngineHandle {
           sustain: 1,
           release: 0.05,
         });
-        volNode = new tone.Volume(tone.gainToDb(layer.volume));
+        volNode = new tone.Volume(-60); // Start silent, fade-in will ramp up
         panNode = new tone.Panner(layer.pan || 0);
         analyserToneFft = new tone.Analyser("fft", 1024);
         analyserToneWave = new tone.Analyser("waveform", 1024);

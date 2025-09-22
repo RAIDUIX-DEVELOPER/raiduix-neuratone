@@ -27,9 +27,9 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title:
-    "NeuraTone — Free Binaural & Isochronic Soundscapes (Sleep, Calm, Focus)",
+    "NeuraTone — Free Binaural & Isochronic Soundscapes with Professional Audio Effects",
   description:
-    "Create calming, layered binaural & isochronic soundscapes in seconds. Free. No sign‑up.",
+    "Create immersive binaural & isochronic soundscapes with 17 professional audio effects. Advanced reverb, multi-band compression, spatial processing. Free. No sign‑up.",
   keywords: [
     "binaural beats",
     "isochronic tones",
@@ -41,6 +41,14 @@ export const metadata: Metadata = {
     "white noise",
     "pink noise",
     "brown noise",
+    "audio effects",
+    "reverb",
+    "chorus",
+    "phaser",
+    "flanger",
+    "compressor",
+    "spatial audio",
+    "sound design",
     "neuratone",
   ],
   manifest: "/manifest.json",
@@ -51,9 +59,9 @@ export const metadata: Metadata = {
     type: "website",
     url: "/",
     title:
-      "NeuraTone — Free Binaural & Isochronic Soundscapes (Sleep, Calm, Focus)",
+      "NeuraTone — Free Binaural & Isochronic Soundscapes with Professional Audio Effects",
     description:
-      "Create calming, layered binaural & isochronic soundscapes in seconds. Free. No sign‑up.",
+      "Create immersive binaural & isochronic soundscapes with 17 professional audio effects. Advanced reverb, multi-band compression, spatial processing. Free. No sign‑up.",
     siteName: "NeuraTone",
     images: [
       {
@@ -67,9 +75,9 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title:
-      "NeuraTone — Free Binaural & Isochronic Soundscapes (Sleep, Calm, Focus)",
+      "NeuraTone — Free Binaural & Isochronic Soundscapes with Professional Audio Effects",
     description:
-      "Create calming, layered binaural & isochronic soundscapes in seconds. Free. No sign‑up.",
+      "Create immersive binaural & isochronic soundscapes with 17 professional audio effects. Advanced reverb, multi-band compression, spatial processing. Free. No sign‑up.",
     images: [
       {
         url: "/og-image.jpg",

@@ -25,6 +25,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Minus,
+  Check,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { SoundLayer, createEngine, type LayerEffect } from "@/lib/audioEngine";
@@ -36,7 +37,43 @@ import {
   createNoiseNode,
   type NoiseType,
   type NoiseNodeHandle,
+  createAutoPanNode,
+  type AutoPanNodeHandle,
 } from "@/lib/effects";
+import {
+  createRingModNode,
+  type RingModNodeHandle,
+} from "@/lib/effects/ringmod";
+import {
+  createTremoloNode,
+  type TremoloNodeHandle,
+} from "@/lib/effects/tremolo";
+import { createChorusNode, type ChorusNodeHandle } from "@/lib/effects/chorus";
+import {
+  createFlangerNode,
+  type FlangerNodeHandle,
+} from "@/lib/effects/flanger";
+import { createPhaserNode, type PhaserNodeHandle } from "@/lib/effects/phaser";
+import {
+  createPingPongDelayNode,
+  type PingPongDelayNodeHandle,
+} from "@/lib/effects/pingpong";
+import {
+  createCombFilterNode,
+  type CombFilterNodeHandle,
+} from "@/lib/effects/combfilter";
+import {
+  createAcidFilterNode,
+  type AcidFilterNodeHandle,
+} from "@/lib/effects/acidfilter";
+import {
+  createGateEffectNode,
+  type GateEffectNodeHandle,
+} from "@/lib/effects/gate";
+import {
+  createHarmonicExciterNode,
+  type HarmonicExciterNodeHandle,
+} from "@/lib/effects/harmonicexciter";
 
 interface EngineRef {
   [id: string]: ReturnType<typeof createEngine>;
@@ -92,8 +129,85 @@ export default function Mixer() {
   const [noiseAutopanHz, setNoiseAutopanHz] = useState<number>(0);
   const [noiseAutopanDepth, setNoiseAutopanDepth] = useState<number>(0);
   const [targetLayerId, setTargetLayerId] = useState<string | null>(null);
+  // Preview state tracking
+  const [isNoisePreviewActive, setIsNoisePreviewActive] = useState(false);
+  // Recently added effects feedback
+  const [recentlyAddedEffects, setRecentlyAddedEffects] = useState<Set<string>>(
+    new Set()
+  );
+
   const noiseCtxRef = useRef<AudioContext | null>(null);
   const noiseHandleRef = useRef<NoiseNodeHandle | null>(null);
+  // AutoPan effect state
+  const [autoPanRate, setAutoPanRate] = useState<number>(0.2);
+  const [autoPanDepth, setAutoPanDepth] = useState<number>(0.8);
+  const autoPanCtxRef = useRef<AudioContext | null>(null);
+  const autoPanHandleRef = useRef<AutoPanNodeHandle | null>(null);
+  // Ring Mod effect state
+  const [ringModFrequency, setRingModFrequency] = useState<number>(30);
+  const [ringModIntensity, setRingModIntensity] = useState<number>(0.5);
+  const ringModCtxRef = useRef<AudioContext | null>(null);
+  const ringModHandleRef = useRef<RingModNodeHandle | null>(null);
+  // Tremolo effect state
+  const [tremoloRate, setTremoloRate] = useState<number>(4);
+  const [tremoloDepth, setTremoloDepth] = useState<number>(0.5);
+  const tremoloCtxRef = useRef<AudioContext | null>(null);
+  const tremoloHandleRef = useRef<TremoloNodeHandle | null>(null);
+  // Chorus effect state
+  const [chorusRate, setChorusRate] = useState<number>(0.5);
+  const [chorusDepth, setChorusDepth] = useState<number>(10);
+  const [chorusMix, setChorusMix] = useState<number>(50);
+  const chorusCtxRef = useRef<AudioContext | null>(null);
+  const chorusHandleRef = useRef<ChorusNodeHandle | null>(null);
+  // Flanger effect state
+  const [flangerRate, setFlangerRate] = useState<number>(0.5);
+  const [flangerDepth, setFlangerDepth] = useState<number>(2);
+  const [flangerFeedback, setFlangerFeedback] = useState<number>(50);
+  const [flangerMix, setFlangerMix] = useState<number>(50);
+  const flangerCtxRef = useRef<AudioContext | null>(null);
+  const flangerHandleRef = useRef<FlangerNodeHandle | null>(null);
+  // Phaser effect state
+  const [phaserRate, setPhaserRate] = useState<number>(0.5);
+  const [phaserDepth, setPhaserDepth] = useState<number>(100);
+  const [phaserStages, setPhaserStages] = useState<number>(4);
+  const [phaserMix, setPhaserMix] = useState<number>(50);
+  const phaserCtxRef = useRef<AudioContext | null>(null);
+  const phaserHandleRef = useRef<PhaserNodeHandle | null>(null);
+  // Ping Pong Delay effect state
+  const [pingpongTime, setPingpongTime] = useState<number>(250);
+  const [pingpongFeedback, setPingpongFeedback] = useState<number>(30);
+  const [pingpongMix, setPingpongMix] = useState<number>(30);
+  const pingpongCtxRef = useRef<AudioContext | null>(null);
+  const pingpongHandleRef = useRef<PingPongDelayNodeHandle | null>(null);
+  // Comb Filter effect state
+  const [combfilterFrequency, setCombfilterFrequency] = useState<number>(440);
+  const [combfilterResonance, setCombfilterResonance] = useState<number>(50);
+  const [combfilterMix, setCombfilterMix] = useState<number>(50);
+  const combfilterCtxRef = useRef<AudioContext | null>(null);
+  const combfilterHandleRef = useRef<CombFilterNodeHandle | null>(null);
+  // Acid Filter effect state
+  const [acidfilterCutoff, setAcidfilterCutoff] = useState<number>(1000);
+  const [acidfilterResonance, setAcidfilterResonance] = useState<number>(15);
+  const [acidfilterLfoRate, setAcidfilterLfoRate] = useState<number>(0.5);
+  const [acidfilterLfoDepth, setAcidfilterLfoDepth] = useState<number>(500);
+  const [acidfilterMix, setAcidfilterMix] = useState<number>(100);
+  const acidfilterCtxRef = useRef<AudioContext | null>(null);
+  const acidfilterHandleRef = useRef<AcidFilterNodeHandle | null>(null);
+  // Gate effect state
+  const [gateRate, setGateRate] = useState<number>(4);
+  const [gateThreshold, setGateThreshold] = useState<number>(50);
+  const [gateAttack, setGateAttack] = useState<number>(10);
+  const [gateRelease, setGateRelease] = useState<number>(100);
+  const [gateMix, setGateMix] = useState<number>(100);
+  const gateCtxRef = useRef<AudioContext | null>(null);
+  const gateHandleRef = useRef<GateEffectNodeHandle | null>(null);
+  // Harmonic Exciter effect state
+  const [harmonicDrive, setHarmonicDrive] = useState<number>(30);
+  const [harmonicHarmonics, setHarmonicHarmonics] = useState<number>(50);
+  const [harmonicTone, setHarmonicTone] = useState<number>(50);
+  const [harmonicMix, setHarmonicMix] = useState<number>(50);
+  const harmonicCtxRef = useRef<AudioContext | null>(null);
+  const harmonicHandleRef = useRef<HarmonicExciterNodeHandle | null>(null);
   // ...removed Pixabay audio search state (deprecated)
   const [saveAsName, setSaveAsName] = useState("");
   const [loadedPresetId, setLoadedPresetId] = useState<string | null>(null);
@@ -410,6 +524,7 @@ export default function Mixer() {
         noiseHandleRef.current.stopAutoPan();
       }
     }
+    setIsNoisePreviewActive(true);
   }
   function stopNoisePreview() {
     const h = noiseHandleRef.current;
@@ -420,14 +535,551 @@ export default function Mixer() {
       h?.dispose();
     } catch {}
     noiseHandleRef.current = null;
+    setIsNoisePreviewActive(false);
   }
+
+  // AutoPan effect preview lifecycle
+  async function ensureAutoPanPreviewStarted() {
+    if (!autoPanCtxRef.current) {
+      const Ctor = (window.AudioContext ||
+        (window as any).webkitAudioContext) as typeof AudioContext;
+      autoPanCtxRef.current = new Ctor();
+    }
+    const ctx = autoPanCtxRef.current!;
+    try {
+      await ctx.resume();
+    } catch {}
+    if (!autoPanHandleRef.current) {
+      const handle = await createAutoPanNode(ctx, {
+        rate: autoPanRate,
+        depth: autoPanDepth,
+      });
+      handle.connect(ctx.destination);
+      autoPanHandleRef.current = handle;
+    } else {
+      autoPanHandleRef.current.setRate(autoPanRate);
+      autoPanHandleRef.current.setDepth(autoPanDepth);
+    }
+  }
+  function stopAutoPanPreview() {
+    const h = autoPanHandleRef.current;
+    try {
+      h?.disconnect();
+    } catch {}
+    try {
+      h?.dispose();
+    } catch {}
+    autoPanHandleRef.current = null;
+  }
+
+  // Ring Mod effect preview lifecycle
+  async function ensureRingModPreviewStarted() {
+    if (!ringModCtxRef.current) {
+      const Ctor = (window.AudioContext ||
+        (window as any).webkitAudioContext) as typeof AudioContext;
+      ringModCtxRef.current = new Ctor();
+    }
+    const ctx = ringModCtxRef.current!;
+    try {
+      await ctx.resume();
+    } catch {}
+    if (!ringModHandleRef.current) {
+      const handle = await createRingModNode(ctx, {
+        frequency: ringModFrequency,
+        intensity: ringModIntensity,
+      });
+      handle.connect(ctx.destination);
+      handle.start();
+      ringModHandleRef.current = handle;
+    } else {
+      ringModHandleRef.current.setFrequency(ringModFrequency);
+      ringModHandleRef.current.setIntensity(ringModIntensity);
+    }
+  }
+  function stopRingModPreview() {
+    const h = ringModHandleRef.current;
+    try {
+      h?.disconnect();
+    } catch {}
+    try {
+      h?.dispose();
+    } catch {}
+    ringModHandleRef.current = null;
+  }
+
+  // Tremolo effect preview lifecycle
+  function ensureTremoloPreviewStarted() {
+    if (!tremoloCtxRef.current) {
+      const Ctor = (window.AudioContext ||
+        (window as any).webkitAudioContext) as typeof AudioContext;
+      tremoloCtxRef.current = new Ctor();
+    }
+    const ctx = tremoloCtxRef.current!;
+    try {
+      ctx.resume();
+    } catch {}
+    if (!tremoloHandleRef.current) {
+      const handle = createTremoloNode(ctx, tremoloRate, tremoloDepth * 100);
+
+      // Create a test oscillator to hear the tremolo effect
+      const osc = ctx.createOscillator();
+      osc.frequency.value = 440; // A4 note for testing
+      osc.type = "sine";
+
+      // Connect: osc -> tremolo -> destination
+      osc.connect(handle.inputGain);
+      handle.outputGain.connect(ctx.destination);
+
+      osc.start();
+      handle.start();
+
+      tremoloHandleRef.current = handle;
+    } else {
+      tremoloHandleRef.current.setRate(tremoloRate);
+      tremoloHandleRef.current.setDepth(tremoloDepth * 100);
+    }
+  }
+  function stopTremoloPreview() {
+    const h = tremoloHandleRef.current;
+    try {
+      h?.outputGain?.disconnect();
+    } catch {}
+    try {
+      h?.dispose();
+    } catch {}
+    tremoloHandleRef.current = null;
+  }
+
+  // Chorus effect preview lifecycle
+  function ensureChorusPreviewStarted() {
+    if (!chorusCtxRef.current) {
+      const Ctor = (window.AudioContext ||
+        (window as any).webkitAudioContext) as typeof AudioContext;
+      chorusCtxRef.current = new Ctor();
+    }
+    const ctx = chorusCtxRef.current!;
+    try {
+      ctx.resume();
+    } catch {}
+    if (!chorusHandleRef.current) {
+      const handle = createChorusNode(ctx, chorusRate, chorusDepth, chorusMix);
+
+      // Create a test oscillator to hear the chorus effect
+      const osc = ctx.createOscillator();
+      osc.frequency.value = 440; // A4 note for testing
+      osc.type = "sine";
+
+      // Connect: osc -> chorus -> destination
+      osc.connect(handle.inputGain);
+      handle.outputGain.connect(ctx.destination);
+
+      osc.start();
+      handle.start();
+
+      chorusHandleRef.current = handle;
+    } else {
+      chorusHandleRef.current.setRate(chorusRate);
+      chorusHandleRef.current.setDepth(chorusDepth);
+      chorusHandleRef.current.setMix(chorusMix);
+    }
+  }
+  function stopChorusPreview() {
+    const h = chorusHandleRef.current;
+    try {
+      h?.outputGain?.disconnect();
+    } catch {}
+    try {
+      h?.dispose();
+    } catch {}
+    chorusHandleRef.current = null;
+  }
+
+  // Flanger effect preview lifecycle
+  function ensureFlangerPreviewStarted() {
+    if (!flangerCtxRef.current) {
+      const Ctor = (window.AudioContext ||
+        (window as any).webkitAudioContext) as typeof AudioContext;
+      flangerCtxRef.current = new Ctor();
+    }
+    const ctx = flangerCtxRef.current!;
+    try {
+      ctx.resume();
+    } catch {}
+    if (!flangerHandleRef.current) {
+      const handle = createFlangerNode(
+        ctx,
+        flangerRate,
+        flangerDepth,
+        flangerFeedback,
+        flangerMix
+      );
+
+      // Create a test oscillator to hear the flanger effect
+      const osc = ctx.createOscillator();
+      osc.frequency.value = 440; // A4 note for testing
+      osc.type = "sine";
+
+      // Connect: osc -> flanger -> destination
+      osc.connect(handle.inputGain);
+      handle.outputGain.connect(ctx.destination);
+
+      osc.start();
+      handle.start();
+
+      flangerHandleRef.current = handle;
+    } else {
+      flangerHandleRef.current.setRate(flangerRate);
+      flangerHandleRef.current.setDepth(flangerDepth);
+      flangerHandleRef.current.setFeedback(flangerFeedback);
+      flangerHandleRef.current.setMix(flangerMix);
+    }
+  }
+  function stopFlangerPreview() {
+    const h = flangerHandleRef.current;
+    try {
+      h?.outputGain?.disconnect();
+    } catch {}
+    try {
+      h?.dispose();
+    } catch {}
+    flangerHandleRef.current = null;
+  }
+
+  // Phaser effect preview lifecycle
+  function ensurePhaserPreviewStarted() {
+    if (!phaserCtxRef.current) {
+      const Ctor = (window.AudioContext ||
+        (window as any).webkitAudioContext) as typeof AudioContext;
+      phaserCtxRef.current = new Ctor();
+    }
+    const ctx = phaserCtxRef.current!;
+    try {
+      ctx.resume();
+    } catch {}
+    if (!phaserHandleRef.current) {
+      const handle = createPhaserNode(
+        ctx,
+        phaserRate,
+        phaserDepth,
+        phaserStages,
+        phaserMix
+      );
+
+      // Create a test oscillator to hear the phaser effect
+      const osc = ctx.createOscillator();
+      osc.frequency.value = 440; // A4 note for testing
+      osc.type = "sawtooth"; // Sawtooth works well with phaser
+
+      // Connect: osc -> phaser -> destination
+      osc.connect(handle.inputGain);
+      handle.outputGain.connect(ctx.destination);
+
+      osc.start();
+      handle.start();
+
+      phaserHandleRef.current = handle;
+    } else {
+      phaserHandleRef.current.setRate(phaserRate);
+      phaserHandleRef.current.setDepth(phaserDepth);
+      phaserHandleRef.current.setStages(phaserStages);
+      phaserHandleRef.current.setMix(phaserMix);
+    }
+  }
+  function stopPhaserPreview() {
+    const h = phaserHandleRef.current;
+    try {
+      h?.outputGain?.disconnect();
+    } catch {}
+    try {
+      h?.dispose();
+    } catch {}
+    phaserHandleRef.current = null;
+  }
+
+  // Ping Pong Delay effect preview lifecycle
+  function ensurePingPongPreviewStarted() {
+    if (!pingpongCtxRef.current) {
+      const Ctor = (window.AudioContext ||
+        (window as any).webkitAudioContext) as typeof AudioContext;
+      pingpongCtxRef.current = new Ctor();
+    }
+    const ctx = pingpongCtxRef.current!;
+    try {
+      ctx.resume();
+    } catch {}
+    if (!pingpongHandleRef.current) {
+      const handle = createPingPongDelayNode(
+        ctx,
+        pingpongTime,
+        pingpongFeedback,
+        pingpongMix
+      );
+
+      // Create a test oscillator to hear the ping pong delay effect
+      const osc = ctx.createOscillator();
+      osc.frequency.value = 880; // Higher pitch for delay testing
+      osc.type = "square"; // Square wave works well with delay
+
+      // Connect: osc -> delay -> destination
+      osc.connect(handle.inputGain);
+      handle.outputGain.connect(ctx.destination);
+
+      osc.start();
+      handle.start();
+
+      pingpongHandleRef.current = handle;
+    } else {
+      pingpongHandleRef.current.setTime(pingpongTime);
+      pingpongHandleRef.current.setFeedback(pingpongFeedback);
+      pingpongHandleRef.current.setMix(pingpongMix);
+    }
+  }
+  function stopPingPongPreview() {
+    const h = pingpongHandleRef.current;
+    try {
+      h?.outputGain?.disconnect();
+    } catch {}
+    try {
+      h?.dispose();
+    } catch {}
+    pingpongHandleRef.current = null;
+  }
+
+  // Comb Filter effect preview lifecycle
+  function ensureCombFilterPreviewStarted() {
+    if (!combfilterCtxRef.current) {
+      const Ctor = (window.AudioContext ||
+        (window as any).webkitAudioContext) as typeof AudioContext;
+      combfilterCtxRef.current = new Ctor();
+    }
+    const ctx = combfilterCtxRef.current!;
+    try {
+      ctx.resume();
+    } catch {}
+    if (!combfilterHandleRef.current) {
+      const handle = createCombFilterNode(
+        ctx,
+        combfilterFrequency,
+        combfilterResonance,
+        combfilterMix
+      );
+
+      // Create a test oscillator to hear the comb filter effect
+      const osc = ctx.createOscillator();
+      osc.frequency.value = 220; // Lower frequency for comb filter testing
+      osc.type = "sawtooth"; // Sawtooth has harmonics that work well with comb filtering
+
+      // Connect: osc -> comb filter -> destination
+      osc.connect(handle.inputGain);
+      handle.outputGain.connect(ctx.destination);
+
+      osc.start();
+      handle.start();
+
+      combfilterHandleRef.current = handle;
+    } else {
+      combfilterHandleRef.current.setFrequency(combfilterFrequency);
+      combfilterHandleRef.current.setResonance(combfilterResonance);
+      combfilterHandleRef.current.setMix(combfilterMix);
+    }
+  }
+  function stopCombFilterPreview() {
+    const h = combfilterHandleRef.current;
+    try {
+      h?.outputGain?.disconnect();
+    } catch {}
+    try {
+      h?.dispose();
+    } catch {}
+    combfilterHandleRef.current = null;
+  }
+
+  // Acid Filter effect preview lifecycle
+  function ensureAcidFilterPreviewStarted() {
+    if (!acidfilterCtxRef.current) {
+      const Ctor = (window.AudioContext ||
+        (window as any).webkitAudioContext) as typeof AudioContext;
+      acidfilterCtxRef.current = new Ctor();
+    }
+    const ctx = acidfilterCtxRef.current!;
+    try {
+      ctx.resume();
+    } catch {}
+    if (!acidfilterHandleRef.current) {
+      const handle = createAcidFilterNode(
+        ctx,
+        acidfilterCutoff,
+        acidfilterResonance,
+        acidfilterLfoRate,
+        acidfilterLfoDepth,
+        acidfilterMix
+      );
+
+      // Create a test oscillator for the classic acid sound
+      const osc = ctx.createOscillator();
+      osc.frequency.value = 110; // Lower bass frequency for acid effect
+      osc.type = "sawtooth"; // Classic acid waveform
+
+      // Connect: osc -> acid filter -> destination
+      osc.connect(handle.inputGain);
+      handle.outputGain.connect(ctx.destination);
+
+      osc.start();
+      handle.start();
+
+      acidfilterHandleRef.current = handle;
+    } else {
+      acidfilterHandleRef.current.setCutoff(acidfilterCutoff);
+      acidfilterHandleRef.current.setResonance(acidfilterResonance);
+      acidfilterHandleRef.current.setLfoRate(acidfilterLfoRate);
+      acidfilterHandleRef.current.setLfoDepth(acidfilterLfoDepth);
+      acidfilterHandleRef.current.setMix(acidfilterMix);
+    }
+  }
+  function stopAcidFilterPreview() {
+    const h = acidfilterHandleRef.current;
+    try {
+      h?.outputGain?.disconnect();
+    } catch {}
+    try {
+      h?.dispose();
+    } catch {}
+    acidfilterHandleRef.current = null;
+  }
+
+  // Gate effect preview lifecycle
+  function ensureGatePreviewStarted() {
+    if (!gateCtxRef.current) {
+      const Ctor = (window.AudioContext ||
+        (window as any).webkitAudioContext) as typeof AudioContext;
+      gateCtxRef.current = new Ctor();
+    }
+    const ctx = gateCtxRef.current!;
+    try {
+      ctx.resume();
+    } catch {}
+    if (!gateHandleRef.current) {
+      const handle = createGateEffectNode(
+        ctx as any,
+        gateRate,
+        gateThreshold,
+        gateAttack,
+        gateRelease,
+        gateMix
+      );
+
+      // Create a test oscillator for the gate effect
+      const osc = ctx.createOscillator();
+      osc.frequency.value = 150; // Mid-bass frequency for gate testing
+      osc.type = "sawtooth"; // Rich harmonics work well with gating
+
+      // Connect: osc -> gate -> destination
+      osc.connect(handle.inputGain);
+      handle.outputGain.connect(ctx.destination);
+
+      osc.start();
+      handle.start();
+
+      gateHandleRef.current = handle;
+    } else {
+      gateHandleRef.current.setRate(gateRate);
+      gateHandleRef.current.setThreshold(gateThreshold);
+      gateHandleRef.current.setAttack(gateAttack);
+      gateHandleRef.current.setRelease(gateRelease);
+      gateHandleRef.current.setMix(gateMix);
+    }
+  }
+  function stopGatePreview() {
+    const h = gateHandleRef.current;
+    try {
+      h?.outputGain?.disconnect();
+    } catch {}
+    try {
+      h?.dispose();
+    } catch {}
+    gateHandleRef.current = null;
+  }
+
+  // Harmonic Exciter effect preview lifecycle
+  function ensureHarmonicExciterPreviewStarted() {
+    if (!harmonicCtxRef.current) {
+      const Ctor = (window.AudioContext ||
+        (window as any).webkitAudioContext) as typeof AudioContext;
+      harmonicCtxRef.current = new Ctor();
+    }
+    const ctx = harmonicCtxRef.current!;
+    try {
+      ctx.resume();
+    } catch {}
+    if (!harmonicHandleRef.current) {
+      const handle = createHarmonicExciterNode(
+        ctx as any,
+        harmonicDrive,
+        harmonicHarmonics,
+        harmonicTone,
+        harmonicMix
+      );
+
+      // Create a test oscillator with harmonic content for exciter testing
+      const osc = ctx.createOscillator();
+      osc.frequency.value = 200; // Base frequency with harmonics
+      osc.type = "sawtooth"; // Rich harmonic content to excite
+
+      // Connect: osc -> harmonic exciter -> destination
+      osc.connect(handle.inputGain);
+      handle.outputGain.connect(ctx.destination);
+
+      osc.start();
+      handle.start();
+
+      harmonicHandleRef.current = handle;
+    } else {
+      harmonicHandleRef.current.setDrive(harmonicDrive);
+      harmonicHandleRef.current.setHarmonics(harmonicHarmonics);
+      harmonicHandleRef.current.setTone(harmonicTone);
+      harmonicHandleRef.current.setMix(harmonicMix);
+    }
+  }
+  function stopHarmonicExciterPreview() {
+    const h = harmonicHandleRef.current;
+    try {
+      h?.outputGain?.disconnect();
+    } catch {}
+    try {
+      h?.dispose();
+    } catch {}
+    harmonicHandleRef.current = null;
+  }
+
   // Cleanup on close/unmount
   useEffect(() => {
     if (!showEffectsLibrary) {
       stopNoisePreview();
+      stopAutoPanPreview();
+      stopRingModPreview();
+      stopTremoloPreview();
+      stopChorusPreview();
+      stopFlangerPreview();
+      stopPhaserPreview();
+      stopPingPongPreview();
+      stopCombFilterPreview();
+      stopAcidFilterPreview();
+      stopGatePreview();
+      stopHarmonicExciterPreview();
     }
     return () => {
       stopNoisePreview();
+      stopAutoPanPreview();
+      stopRingModPreview();
+      stopTremoloPreview();
+      stopChorusPreview();
+      stopFlangerPreview();
+      stopPhaserPreview();
+      stopPingPongPreview();
+      stopCombFilterPreview();
+      stopAcidFilterPreview();
+      stopGatePreview();
+      stopHarmonicExciterPreview();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showEffectsLibrary]);
@@ -1022,12 +1674,12 @@ export default function Mixer() {
                         <div
                           role="region"
                           aria-label={`Layer ${index + 1} controls`}
-                          className="mx-0 relative bg-black/25 border border-white/8 rounded-none sm:rounded-xl md:rounded-2xl p-0 hover:border-white/20 transition-colors w-full overflow-x-hidden max-w-full"
+                          className="mx-0 relative bg-gradient-to-br from-black/30 via-black/25 to-black/20 border border-white/10 rounded-none sm:rounded-2xl md:rounded-3xl p-0 pb-3 hover:border-white/25 hover:shadow-xl hover:shadow-black/20 transition-all duration-300 w-full overflow-hidden max-w-full backdrop-blur-sm"
                         >
                           {/* Header */}
-                          <div className="flex flex-wrap items-center justify-between gap-3 md:gap-3 mb-4 md:mb-4 lg:mb-2 xl:mb-2 min-w-0 p-3 lg:p-2 xl:p-2">
+                          <div className="flex flex-wrap items-center justify-between gap-3 md:gap-3 mb-4 md:mb-5 lg:mb-3 xl:mb-3 min-w-0 p-4 lg:p-3 xl:p-3 bg-white/[0.02] border-b border-white/5">
                             <div className="flex items-center gap-3 md:gap-4 min-w-0 flex-1">
-                              <span className="inline-flex h-7 w-7 md:h-8 md:w-8 lg:h-8 lg:w-8 items-center justify-center rounded-lg bg-teal-500/20 text-teal-300 text-xs md:text-xs lg:text-xs xl:text-xs font-semibold">
+                              <span className="inline-flex h-5 w-5 items-center justify-center rounded bg-gradient-to-br from-teal-500/25 to-teal-600/20 text-teal-200 text-[10px] font-bold border border-teal-400/20 shadow-inner p-[5px]">
                                 {index + 1}
                               </span>
                               <div className="relative">
@@ -1100,22 +1752,22 @@ export default function Mixer() {
                             <div className="flex items-center gap-2 w-full sm:w-auto justify-end min-w-0">
                               <button
                                 onClick={() => togglePlay(layer)}
-                                className={`inline-flex items-center gap-2 px-3 py-2 sm:py-2 rounded-lg text-xs md:text-xs lg:text-[10px] xl:text-[10px] font-semibold transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/60 ${
+                                className={`inline-flex items-center justify-center p-2 rounded-lg transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/60 ${
                                   layer.isPlaying
                                     ? "bg-teal-500/90 hover:bg-teal-500 text-white shadow-lg shadow-teal-500/25"
                                     : "bg-white/8 text-white/70 hover:bg-white/15 hover:text-white/90 border border-white/15 hover:border-white/25"
                                 }`}
+                                title={
+                                  layer.isPlaying ? "Stop layer" : "Play layer"
+                                }
+                                aria-label={
+                                  layer.isPlaying ? "Stop layer" : "Play layer"
+                                }
                               >
                                 {layer.isPlaying ? (
-                                  <>
-                                    <Square size={16} />
-                                    Stop
-                                  </>
+                                  <Square size={16} />
                                 ) : (
-                                  <>
-                                    <Play size={16} />
-                                    Play
-                                  </>
+                                  <Play size={16} />
                                 )}
                               </button>
                               <button
@@ -1161,9 +1813,9 @@ export default function Mixer() {
                           </div>
 
                           {/* Controls (Enhanced layout with better visual hierarchy) */}
-                          <div className="space-y-3 md:space-y-4 lg:space-y-2 xl:space-y-2 min-w-0 max-w-full px-3 lg:px-2 xl:px-2">
+                          <div className="space-y-4 md:space-y-5 lg:space-y-3 xl:space-y-3 min-w-0 max-w-full px-4 lg:px-3 xl:px-3">
                             {/* Frequency Controls Section */}
-                            <div className="space-y-2 text-[10px] min-w-0 max-w-full bg-black/10 rounded-lg p-3 md:p-3 lg:p-1.5 xl:p-1.5 border border-white/5">
+                            <div className="space-y-3 text-[10px] min-w-0 max-w-full bg-gradient-to-br from-black/15 to-black/5 rounded-xl p-4 md:p-4 lg:p-3 xl:p-3 border border-white/8 backdrop-blur-sm">
                               <div className="space-y-2 min-w-0 max-w-full">
                                 <div className="flex flex-wrap items-center justify-between gap-2 text-white/60">
                                   <label
@@ -1420,7 +2072,7 @@ export default function Mixer() {
                               </div>
                             </div>
                             {/* Volume & Pan Controls Section */}
-                            <div className="space-y-2 text-[10px] min-w-0 max-w-full bg-black/10 rounded-lg p-3 md:p-3 lg:p-1.5 xl:p-1.5 border border-white/5">
+                            <div className="space-y-3 text-[10px] min-w-0 max-w-full bg-gradient-to-br from-black/15 to-black/5 rounded-xl p-4 md:p-4 lg:p-3 xl:p-3 border border-white/8 backdrop-blur-sm">
                               <div className="space-y-2 min-w-0 max-w-full">
                                 <div className="flex justify-between text-white/70">
                                   <label
@@ -1487,7 +2139,7 @@ export default function Mixer() {
                               </div>
                             </div>
                             {/* Waveform Selection Section */}
-                            <div className="bg-black/10 rounded-lg p-3 md:p-3 lg:p-1.5 xl:p-1.5 border border-white/5 min-w-0 max-w-full">
+                            <div className="bg-gradient-to-br from-black/15 to-black/5 rounded-xl p-4 md:p-4 lg:p-3 xl:p-3 border border-white/8 min-w-0 max-w-full backdrop-blur-sm">
                               <div className="text-xs md:text-xs lg:text-[10px] xl:text-[10px] uppercase tracking-wider font-medium text-white/80 mb-3 lg:mb-2 xl:mb-1.5">
                                 Waveform Selection
                               </div>
@@ -1519,61 +2171,191 @@ export default function Mixer() {
                             </div>
                           </div>
 
-                          {/* Effects chips at bottom of layer card */}
+                          {/* Enhanced Effects Section */}
                           {layer.effects && layer.effects.length > 0 && (
-                            <div className="pt-2 mt-2 border-t border-white/5">
-                              <div className="flex flex-wrap gap-1">
+                            <div className="mx-4 mb-3 mt-2">
+                              <div className="mb-2">
+                                <h4 className="text-xs font-semibold text-white/60 uppercase tracking-wider flex items-center gap-2">
+                                  <div className="h-0.5 w-4 bg-gradient-to-r from-teal-400/50 to-transparent rounded"></div>
+                                  Active Effects
+                                  <span className="bg-white/10 text-white/70 px-1.5 py-0.5 rounded-full text-[10px] font-medium">
+                                    {layer.effects.length}
+                                  </span>
+                                </h4>
+                              </div>
+                              <div className="grid grid-cols-1 gap-2">
                                 {layer.effects.map((fx: LayerEffect) => {
-                                  // Color mapping per effect
-                                  let bg = "bg-white/10";
-                                  let text = "text-white/70";
-                                  let border = "border-white/20";
+                                  // Enhanced color mapping per effect with gradients and better contrast
+                                  let bgGradient = "from-white/8 to-white/4";
+                                  let text = "text-white/80";
+                                  let border = "border-white/15";
+                                  let accentColor = "bg-white/20";
+                                  let icon = "🎵";
+
                                   if (fx.kind === "noise") {
+                                    icon = "🌊";
                                     if (fx.type === "white") {
-                                      bg = "bg-slate-500/15";
-                                      text = "text-slate-200";
-                                      border = "border-slate-400/30";
+                                      bgGradient =
+                                        "from-slate-500/20 to-slate-600/10";
+                                      text = "text-slate-100";
+                                      border = "border-slate-400/25";
+                                      accentColor = "bg-slate-400/30";
                                     } else if (fx.type === "pink") {
-                                      bg = "bg-rose-500/15";
-                                      text = "text-rose-200";
-                                      border = "border-rose-400/30";
+                                      bgGradient =
+                                        "from-rose-500/20 to-rose-600/10";
+                                      text = "text-rose-100";
+                                      border = "border-rose-400/25";
+                                      accentColor = "bg-rose-400/30";
                                     } else if (fx.type === "brown") {
-                                      bg = "bg-amber-500/15";
-                                      text = "text-amber-200";
-                                      border = "border-amber-400/30";
+                                      bgGradient =
+                                        "from-amber-500/20 to-amber-600/10";
+                                      text = "text-amber-100";
+                                      border = "border-amber-400/25";
+                                      accentColor = "bg-amber-400/30";
                                     }
+                                  } else if (fx.kind === "reverb") {
+                                    icon = "🏛️";
+                                    bgGradient =
+                                      "from-blue-500/20 to-blue-600/10";
+                                    text = "text-blue-100";
+                                    border = "border-blue-400/25";
+                                    accentColor = "bg-blue-400/30";
+                                  } else if (fx.kind === "chorus") {
+                                    icon = "🌀";
+                                    bgGradient =
+                                      "from-purple-500/20 to-purple-600/10";
+                                    text = "text-purple-100";
+                                    border = "border-purple-400/25";
+                                    accentColor = "bg-purple-400/30";
+                                  } else if (fx.kind === "flanger") {
+                                    icon = "🌪️";
+                                    bgGradient =
+                                      "from-indigo-500/20 to-indigo-600/10";
+                                    text = "text-indigo-100";
+                                    border = "border-indigo-400/25";
+                                    accentColor = "bg-indigo-400/30";
+                                  } else if (fx.kind === "phaser") {
+                                    icon = "🔄";
+                                    bgGradient =
+                                      "from-violet-500/20 to-violet-600/10";
+                                    text = "text-violet-100";
+                                    border = "border-violet-400/25";
+                                    accentColor = "bg-violet-400/30";
+                                  } else if (fx.kind === "tremolo") {
+                                    icon = "📳";
+                                    bgGradient =
+                                      "from-orange-500/20 to-orange-600/10";
+                                    text = "text-orange-100";
+                                    border = "border-orange-400/25";
+                                    accentColor = "bg-orange-400/30";
+                                  } else if (fx.kind === "autopan") {
+                                    icon = "↔️";
+                                    bgGradient =
+                                      "from-cyan-500/20 to-cyan-600/10";
+                                    text = "text-cyan-100";
+                                    border = "border-cyan-400/25";
+                                    accentColor = "bg-cyan-400/30";
+                                  } else if (fx.kind === "ringmod") {
+                                    icon = "⭕";
+                                    bgGradient =
+                                      "from-red-500/20 to-red-600/10";
+                                    text = "text-red-100";
+                                    border = "border-red-400/25";
+                                    accentColor = "bg-red-400/30";
+                                  } else if (
+                                    fx.kind === "multibandcompressor"
+                                  ) {
+                                    icon = "🎚️";
+                                    bgGradient =
+                                      "from-emerald-500/20 to-emerald-600/10";
+                                    text = "text-emerald-100";
+                                    border = "border-emerald-400/25";
+                                    accentColor = "bg-emerald-400/30";
                                   }
+
+                                  const effectName =
+                                    fx.kind === "noise"
+                                      ? `${fx.type} noise`
+                                      : fx.kind
+                                          .replace(/([A-Z])/g, " $1")
+                                          .toLowerCase();
+
                                   return (
-                                    <span
+                                    <div
                                       key={fx.id}
-                                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] ${bg} ${text} border ${border}`}
+                                      className={`relative group bg-gradient-to-r ${bgGradient} border ${border} rounded-xl p-3 hover:shadow-lg hover:scale-[1.02] transition-all duration-200 backdrop-blur-sm`}
                                     >
-                                      {fx.kind === "noise"
-                                        ? `${fx.type} noise`
-                                        : fx.kind}
-                                      <button
-                                        onClick={() => {
-                                          removeLayerEffect(layer.id, fx.id);
-                                          const updated = useAppStore
-                                            .getState()
-                                            .layers.find(
-                                              (l) => l.id === layer.id
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                                          <div
+                                            className={`w-6 h-6 ${accentColor} rounded-lg flex items-center justify-center text-xs`}
+                                          >
+                                            {icon}
+                                          </div>
+                                          <div className="min-w-0 flex-1">
+                                            <div
+                                              className={`text-xs font-semibold ${text} capitalize truncate`}
+                                            >
+                                              {effectName}
+                                            </div>
+                                            <div className="text-[10px] text-white/50 truncate">
+                                              Audio Effect
+                                            </div>
+                                          </div>
+                                        </div>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            console.log(
+                                              `Removing effect ${fx.id} from layer ${layer.id}`
                                             );
-                                          if (updated) {
-                                            engines.current[layer.id]?.update({
-                                              effects: (updated.effects ||
-                                                []) as any,
-                                            });
-                                          }
-                                        }}
-                                        className="ml-1 p-0.5 rounded hover:bg-white/10"
-                                        aria-label="Remove effect"
-                                      >
-                                        <X size={12} />
-                                      </button>
-                                    </span>
+
+                                            // Filter effects locally for immediate engine update
+                                            const filteredEffects = (
+                                              layer.effects || []
+                                            ).filter((e) => e.id !== fx.id);
+
+                                            // Update audio engine immediately with filtered effects
+                                            const currentEngine =
+                                              engines.current[layer.id];
+                                            if (currentEngine) {
+                                              currentEngine.update({
+                                                effects: filteredEffects as any,
+                                              });
+                                            }
+
+                                            // Remove from store (this will update UI)
+                                            removeLayerEffect(layer.id, fx.id);
+                                          }}
+                                          className="relative z-10 shrink-0 ml-3 p-2 rounded-lg bg-red-500/10 hover:bg-red-500/25 border border-red-500/20 hover:border-red-500/40 transition-all duration-200 hover:scale-105 flex items-center justify-center group/remove"
+                                          aria-label={`Remove ${effectName} effect`}
+                                          title={`Remove ${effectName} effect`}
+                                        >
+                                          <Trash2
+                                            size={14}
+                                            className="text-red-400 group-hover/remove:text-red-300 transition-colors"
+                                          />
+                                        </button>
+                                      </div>
+                                      {/* Subtle animated border effect */}
+                                      <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
+                                    </div>
                                   );
                                 })}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Empty state for no effects */}
+                          {(!layer.effects || layer.effects.length === 0) && (
+                            <div className="mx-4 mb-3 mt-2">
+                              <div className="bg-white/5 border border-white/10 rounded-xl p-4 text-center">
+                                <div className="text-white/40 text-xs mb-1">
+                                  No effects applied
+                                </div>
+                                <div className="text-white/30 text-[10px]">
+                                  Add effects from the library below
+                                </div>
                               </div>
                             </div>
                           )}
@@ -1592,7 +2374,7 @@ export default function Mixer() {
                         duration: 0.35,
                         delay: layers.length * 0.04,
                       }}
-                      className="hidden xs:flex xs:mx-2 sm:mx-3 md:mx-4 lg:mx-5 h-[100px] xs:h-[120px] sm:h-[130px] md:h-[140px] lg:h-[150px] items-center justify-center rounded-xl border-2 border-dashed border-white/10 hover:border-teal-500/40 text-white/50 hover:text-teal-300 bg-black/20 text-[11px] xs:text-xs sm:text-sm md:text-base font-medium gap-2"
+                      className="hidden sm:flex mx-2 sm:mx-3 md:mx-4 lg:mx-5 h-[100px] sm:h-[120px] md:h-[140px] lg:h-[150px] items-center justify-center rounded-xl border-2 border-dashed border-white/10 hover:border-teal-500/40 text-white/50 hover:text-teal-300 bg-black/20 text-xs sm:text-sm md:text-base font-medium gap-2"
                     >
                       <Plus size={16} /> Add Layer ({5 - layers.length})
                     </motion.button>
@@ -2046,77 +2828,88 @@ export default function Mixer() {
         </div>
       )}
 
-      {/* Effects Library Drawer */}
+      {/* Effects Library Fullscreen Page */}
       {showEffectsLibrary && (
         <div
           className="fixed inset-0 z-50"
           aria-labelledby="effects-library-title"
         >
-          {/* Backdrop */}
+          {/* Fullscreen Panel */}
           <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            onClick={() => setShowEffectsLibrary(false)}
-          />
-          {/* Panel */}
-          <aside
             id="effects-library-panel"
-            className="absolute inset-0 sm:inset-auto sm:right-0 sm:top-0 sm:h-full sm:w-[360px] bg-black/80 sm:bg-black/60 backdrop-blur-xl shadow-2xl sm:border-l sm:border-white/10"
+            className="absolute inset-0 bg-black/95 backdrop-blur-xl"
           >
             <div className="h-full flex flex-col">
               <div
-                className="flex items-center justify-between px-4 py-3 border-b border-white/10"
-                style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top))" }}
+                className="flex items-center justify-between px-6 py-4 border-b border-white/15 bg-gradient-to-r from-black/50 to-black/30 backdrop-blur-sm"
+                style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}
               >
-                <h3
-                  id="effects-library-title"
-                  className="text-sm font-medium text-white"
-                >
-                  Effects Library
-                </h3>
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-gradient-to-br from-teal-400 to-teal-600 rounded-lg flex items-center justify-center">
+                    <SlidersHorizontal size={16} className="text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <h3
+                      id="effects-library-title"
+                      className="text-lg font-semibold text-white"
+                    >
+                      Effects Library
+                    </h3>
+                    <p className="text-xs text-white/60">
+                      Add professional audio effects to your layers
+                    </p>
+                  </div>
+                  {/* Target Layer Select - Now in Header */}
+                  <div className="flex items-center gap-3">
+                    <div className="w-4 h-4 bg-teal-500/20 rounded-lg flex items-center justify-center">
+                      <span className="text-teal-400 text-xs">🎯</span>
+                    </div>
+                    <label className="text-sm font-medium text-white/90 whitespace-nowrap">
+                      Target Layer:
+                    </label>
+                    <div className="relative min-w-[180px]">
+                      <select
+                        value={targetLayerId || ""}
+                        onChange={(e) =>
+                          setTargetLayerId(e.target.value || null)
+                        }
+                        className="w-full bg-black/50 border border-white/25 hover:border-white/35 rounded-lg pl-3 pr-8 h-9 min-w-[6rem] text-xs md:text-xs lg:text-xs xl:text-xs text-white/90 font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/60 focus:border-teal-500/70 appearance-none cursor-pointer transition-all duration-150"
+                      >
+                        <option className="bg-slate-900" value="" disabled>
+                          Choose layer…
+                        </option>
+                        {layers.map((l, i) => (
+                          <option
+                            className="bg-slate-900"
+                            key={l.id}
+                            value={l.id}
+                          >
+                            Layer {i + 1} • {l.type} • {l.effects?.length || 0}
+                            /4
+                          </option>
+                        ))}
+                      </select>
+                      <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-white/50">
+                        <ChevronDown size={14} />
+                      </span>
+                    </div>
+                  </div>
+                </div>
                 <button
-                  className="p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/10"
+                  className="p-2.5 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-all duration-200 hover:scale-105"
                   aria-label="Close effects library"
                   onClick={() => setShowEffectsLibrary(false)}
                 >
-                  <X size={16} />
+                  <X size={18} />
                 </button>
               </div>
               <div
-                className="flex-1 overflow-y-auto px-4 py-3 space-y-4"
+                className="flex-1 overflow-y-auto px-6 py-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4"
                 style={{
-                  paddingBottom: "max(1rem, env(safe-area-inset-bottom))",
+                  paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))",
                 }}
               >
-                {/* Target Layer Select */}
-                <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-                  <label className="block text-[11px] text-white/70 mb-1">
-                    Choose layer to add effect:
-                  </label>
-                  <div className="relative inline-block">
-                    <select
-                      value={targetLayerId || ""}
-                      onChange={(e) => setTargetLayerId(e.target.value || null)}
-                      className="bg-black/40 border border-white/15 rounded-md pl-2 pr-6 py-1 text-[11px] text-white/80 focus:outline-none focus:ring-1 focus:ring-teal-500/50 focus:border-teal-500/50 appearance-none cursor-pointer min-w-[180px]"
-                    >
-                      <option className="bg-slate-900" value="" disabled>
-                        Select a layer…
-                      </option>
-                      {layers.map((l, i) => (
-                        <option
-                          className="bg-slate-900"
-                          key={l.id}
-                          value={l.id}
-                        >
-                          Layer {i + 1} • {l.type}
-                        </option>
-                      ))}
-                    </select>
-                    <span className="pointer-events-none absolute inset-y-0 right-1 flex items-center text-white/50">
-                      <ChevronDown size={14} />
-                    </span>
-                  </div>
-                </div>
-                {/* Noise Generator Card */}
+                {/* Noise Generator Card - Single Grid Cell */}
                 <div className="rounded-xl border border-white/10 bg-white/5 p-3">
                   <div className="flex items-center justify-between mb-2">
                     <div>
@@ -2124,15 +2917,18 @@ export default function Mixer() {
                         Noise Generator
                       </div>
                       <div className="text-[11px] text-white/60">
-                        White, Pink, and Brown noise
+                        White, Pink, and Brown noise textures
                       </div>
                     </div>
                   </div>
                   <div className="space-y-3">
-                    <label className="block text-[11px] text-white/70">
-                      Type
-                    </label>
-                    <div className="relative inline-block">
+                    <div>
+                      <div className="flex justify-between text-[11px] text-white/60">
+                        <span>Type</span>
+                        <span className="text-white/80 font-medium capitalize">
+                          {noiseType}
+                        </span>
+                      </div>
                       <select
                         value={noiseType}
                         onChange={(e) => {
@@ -2140,7 +2936,7 @@ export default function Mixer() {
                           setNoiseType(t);
                           noiseHandleRef.current?.setType(t);
                         }}
-                        className="bg-black/40 border border-white/15 rounded-md pl-2 pr-6 py-1 text-[11px] text-white/80 focus:outline-none focus:ring-1 focus:ring-teal-500/50 focus:border-teal-500/50 appearance-none cursor-pointer"
+                        className="w-full bg-black/50 border border-white/20 rounded-lg pl-2 pr-6 py-1.5 text-xs text-white/90 focus:outline-none focus:ring-1 focus:ring-teal-500/50 focus:border-teal-500/50 appearance-none cursor-pointer transition-all duration-200 hover:border-white/30"
                       >
                         <option className="bg-slate-900" value="white">
                           White
@@ -2152,65 +2948,62 @@ export default function Mixer() {
                           Brown
                         </option>
                       </select>
-                      <span className="pointer-events-none absolute inset-y-0 right-1 flex items-center text-white/50">
-                        <ChevronDown size={14} />
-                      </span>
                     </div>
 
-                    <div>
-                      <div className="flex justify-between text-[11px] text-white/60">
-                        <span>Gain</span>
-                        <span className="text-white/80 font-medium">
-                          {Math.round(noiseGain * 100)}%
-                        </span>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <div className="flex justify-between text-[11px] text-white/60">
+                          <span>Gain</span>
+                          <span className="text-white/80 font-medium">
+                            {Math.round(noiseGain * 100)}%
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={1}
+                          step={0.01}
+                          value={noiseGain}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            setNoiseGain(v);
+                            noiseHandleRef.current?.setGain(v);
+                          }}
+                          className="w-full appearance-none cursor-pointer"
+                        />
                       </div>
-                      <input
-                        type="range"
-                        min={0}
-                        max={1}
-                        step={0.01}
-                        value={noiseGain}
-                        onChange={(e) => {
-                          const v = parseFloat(e.target.value);
-                          setNoiseGain(v);
-                          noiseHandleRef.current?.setGain(v);
-                        }}
-                        className="w-full appearance-none cursor-pointer"
-                      />
-                    </div>
-
-                    <div>
-                      <div className="flex justify-between text-[11px] text-white/60">
-                        <span>Pan</span>
-                        <span className="text-white/80 font-medium">
-                          {noisePan === 0
-                            ? "C"
-                            : noisePan > 0
-                            ? `R ${Math.abs(noisePan).toFixed(2)}`
-                            : `L ${Math.abs(noisePan).toFixed(2)}`}
-                        </span>
+                      <div>
+                        <div className="flex justify-between text-[11px] text-white/60">
+                          <span>Pan</span>
+                          <span className="text-white/80 font-medium">
+                            {noisePan === 0
+                              ? "C"
+                              : noisePan > 0
+                              ? `R${Math.abs(noisePan).toFixed(1)}`
+                              : `L${Math.abs(noisePan).toFixed(1)}`}
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={-1}
+                          max={1}
+                          step={0.01}
+                          value={noisePan}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            setNoisePan(v);
+                            noiseHandleRef.current?.setPan(v);
+                          }}
+                          className="w-full appearance-none cursor-pointer"
+                        />
                       </div>
-                      <input
-                        type="range"
-                        min={-1}
-                        max={1}
-                        step={0.01}
-                        value={noisePan}
-                        onChange={(e) => {
-                          const v = parseFloat(e.target.value);
-                          setNoisePan(v);
-                          noiseHandleRef.current?.setPan(v);
-                        }}
-                        className="w-full appearance-none cursor-pointer"
-                      />
                     </div>
 
-                    {/* Low-pass filter */}
                     <div>
                       <div className="flex justify-between text-[11px] text-white/60">
-                        <span>Low-pass filter</span>
+                        <span>Filter</span>
                         <span className="text-white/80 font-medium">
-                          {Math.round(noiseLpf)} Hz
+                          {Math.round(noiseLpf / 1000)}kHz
                         </span>
                       </div>
                       <input
@@ -2228,82 +3021,22 @@ export default function Mixer() {
                       />
                     </div>
 
-                    {/* Autopan */}
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <div className="flex justify-between text-[11px] text-white/60">
-                          <span>Autopan rate</span>
-                          <span className="text-white/80 font-medium">
-                            {noiseAutopanHz.toFixed(2)} Hz
-                          </span>
-                        </div>
-                        <input
-                          type="range"
-                          min={0}
-                          max={0.5}
-                          step={0.01}
-                          value={noiseAutopanHz}
-                          onChange={(e) => {
-                            const v = Number(e.target.value);
-                            setNoiseAutopanHz(v);
-                            if (noiseHandleRef.current) {
-                              if (v > 0 && noiseAutopanDepth > 0)
-                                noiseHandleRef.current.startAutoPan(
-                                  v,
-                                  noiseAutopanDepth
-                                );
-                              else noiseHandleRef.current.stopAutoPan();
-                            }
-                          }}
-                          className="w-full appearance-none cursor-pointer"
-                        />
-                      </div>
-                      <div>
-                        <div className="flex justify-between text-[11px] text-white/60">
-                          <span>Autopan depth</span>
-                          <span className="text-white/80 font-medium">
-                            {(noiseAutopanDepth * 100).toFixed(0)}%
-                          </span>
-                        </div>
-                        <input
-                          type="range"
-                          min={0}
-                          max={1}
-                          step={0.01}
-                          value={noiseAutopanDepth}
-                          onChange={(e) => {
-                            const v = Number(e.target.value);
-                            setNoiseAutopanDepth(v);
-                            if (noiseHandleRef.current) {
-                              if (noiseAutopanHz > 0 && v > 0)
-                                noiseHandleRef.current.startAutoPan(
-                                  noiseAutopanHz,
-                                  v
-                                );
-                              else noiseHandleRef.current.stopAutoPan();
-                            }
-                          }}
-                          className="w-full appearance-none cursor-pointer"
-                        />
-                      </div>
-                    </div>
-
                     <div className="flex items-center gap-2 pt-1">
                       <button
                         onClick={() => {
-                          if (noiseHandleRef.current) {
+                          if (isNoisePreviewActive) {
                             stopNoisePreview();
                           } else {
                             ensureNoisePreviewStarted();
                           }
                         }}
                         className={`inline-flex items-center gap-2 px-3 py-1.5 btn-shape text-white text-xs font-medium transition-colors ${
-                          noiseHandleRef.current
-                            ? "bg-white/10 hover:bg-white/20"
+                          isNoisePreviewActive
+                            ? "bg-red-500/80 hover:bg-red-500"
                             : "bg-teal-500/80 hover:bg-teal-500"
                         }`}
                       >
-                        {noiseHandleRef.current ? (
+                        {isNoisePreviewActive ? (
                           <>
                             <Square size={16} /> Stop
                           </>
@@ -2317,6 +3050,19 @@ export default function Mixer() {
                         disabled={!targetLayerId}
                         onClick={() => {
                           if (!targetLayerId) return;
+
+                          // Check effect limit
+                          const currentLayer = layers.find(
+                            (l) => l.id === targetLayerId
+                          );
+                          if (
+                            currentLayer?.effects &&
+                            currentLayer.effects.length >= 4
+                          ) {
+                            alert("Maximum of 4 effects allowed per layer");
+                            return;
+                          }
+
                           const effect = {
                             id: crypto.randomUUID(),
                             kind: "noise" as const,
@@ -2328,15 +3074,168 @@ export default function Mixer() {
                             autopanDepth: noiseAutopanDepth,
                           };
                           addLayerEffect(targetLayerId, effect);
-                          // notify engine about effects change
-                          const updated = useAppStore
+
+                          // Show success feedback
+                          const feedbackKey = `noise-${targetLayerId}`;
+                          setRecentlyAddedEffects(
+                            (prev) => new Set([...prev, feedbackKey])
+                          );
+                          setTimeout(() => {
+                            setRecentlyAddedEffects((prev) => {
+                              const newSet = new Set(prev);
+                              newSet.delete(feedbackKey);
+                              return newSet;
+                            });
+                          }, 2000);
+
+                          // Get the current effects and add the new one for immediate engine update
+                          const layerForUpdate = useAppStore
                             .getState()
                             .layers.find((l) => l.id === targetLayerId);
-                          if (updated) {
-                            engines.current[targetLayerId]?.update({
-                              effects: updated.effects as any,
-                            });
+                          const existingEffects = layerForUpdate?.effects || [];
+                          const updatedEffects = [...existingEffects, effect];
+                          // Notify engine about effects change immediately
+                          engines.current[targetLayerId]?.update({
+                            effects: updatedEffects as any,
+                          });
+                        }}
+                        className={`inline-flex items-center gap-2 px-3 py-1.5 btn-shape text-white text-xs font-medium transition-colors disabled:opacity-40 ${
+                          recentlyAddedEffects.has(`noise-${targetLayerId}`)
+                            ? "bg-green-500/80 hover:bg-green-500"
+                            : "bg-amber-500/80 hover:bg-amber-500"
+                        }`}
+                      >
+                        {recentlyAddedEffects.has(`noise-${targetLayerId}`) ? (
+                          <>
+                            <Check size={16} /> Added!
+                          </>
+                        ) : (
+                          <>
+                            <Plus size={16} /> Add to Layer
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* AutoPan Effect Card */}
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <div className="text-sm text-white font-medium">
+                        AutoPan Effect
+                      </div>
+                      <div className="text-[11px] text-white/60">
+                        360-degree panning animation
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <div className="flex justify-between text-[11px] text-white/60">
+                          <span>Rate</span>
+                          <span className="text-white/80 font-medium">
+                            {autoPanRate.toFixed(2)} Hz
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0.05}
+                          max={2}
+                          step={0.01}
+                          value={autoPanRate}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            setAutoPanRate(v);
+                            autoPanHandleRef.current?.setRate(v);
+                          }}
+                          className="w-full appearance-none cursor-pointer"
+                        />
+                      </div>
+                      <div>
+                        <div className="flex justify-between text-[11px] text-white/60">
+                          <span>Depth</span>
+                          <span className="text-white/80 font-medium">
+                            {Math.round(autoPanDepth * 100)}%
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={1}
+                          step={0.01}
+                          value={autoPanDepth}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            setAutoPanDepth(v);
+                            autoPanHandleRef.current?.setDepth(v);
+                          }}
+                          className="w-full appearance-none cursor-pointer"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-1">
+                      <button
+                        onClick={() => {
+                          if (autoPanHandleRef.current) {
+                            stopAutoPanPreview();
+                          } else {
+                            ensureAutoPanPreviewStarted();
                           }
+                        }}
+                        className={`inline-flex items-center gap-2 px-3 py-1.5 btn-shape text-white text-xs font-medium transition-colors ${
+                          autoPanHandleRef.current
+                            ? "bg-white/10 hover:bg-white/20"
+                            : "bg-teal-500/80 hover:bg-teal-500"
+                        }`}
+                      >
+                        {autoPanHandleRef.current ? (
+                          <>
+                            <Square size={16} /> Stop
+                          </>
+                        ) : (
+                          <>
+                            <Play size={16} /> Preview
+                          </>
+                        )}
+                      </button>
+                      <button
+                        disabled={!targetLayerId}
+                        onClick={() => {
+                          if (!targetLayerId) return;
+
+                          // Check effect limit
+                          const currentLayer = layers.find(
+                            (l) => l.id === targetLayerId
+                          );
+                          if (
+                            currentLayer?.effects &&
+                            currentLayer.effects.length >= 4
+                          ) {
+                            alert("Maximum of 4 effects allowed per layer");
+                            return;
+                          }
+
+                          const effect = {
+                            id: crypto.randomUUID(),
+                            kind: "autopan" as const,
+                            rate: autoPanRate,
+                            depth: autoPanDepth,
+                          };
+                          addLayerEffect(targetLayerId, effect);
+                          // Get the current effects and add the new one for immediate engine update
+                          const layerForUpdate = useAppStore
+                            .getState()
+                            .layers.find((l) => l.id === targetLayerId);
+                          const existingEffects = layerForUpdate?.effects || [];
+                          const updatedEffects = [...existingEffects, effect];
+                          // Notify engine about effects change immediately
+                          engines.current[targetLayerId]?.update({
+                            effects: updatedEffects as any,
+                          });
                         }}
                         className="inline-flex items-center gap-2 px-3 py-1.5 btn-shape bg-amber-500/80 hover:bg-amber-500 text-white text-xs font-medium transition-colors disabled:opacity-40"
                       >
@@ -2348,6 +3247,1598 @@ export default function Mixer() {
 
                 {/* Removed: Pixabay Audio Search (deprecated) */}
 
+                {/* Ring Modulation Effect Card */}
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <div className="text-sm text-white font-medium">
+                        Ring Modulation
+                      </div>
+                      <div className="text-[11px] text-white/60">
+                        Creates metallic, robotic tones
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <div className="flex justify-between text-[11px] text-white/60">
+                          <span>Frequency</span>
+                          <span className="text-white/80 font-medium">
+                            {ringModFrequency.toFixed(1)} Hz
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0.1}
+                          max={200}
+                          step={0.1}
+                          value={ringModFrequency}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            setRingModFrequency(v);
+                            ringModHandleRef.current?.setFrequency(v);
+                          }}
+                          className="w-full appearance-none cursor-pointer"
+                        />
+                      </div>
+                      <div>
+                        <div className="flex justify-between text-[11px] text-white/60">
+                          <span>Intensity</span>
+                          <span className="text-white/80 font-medium">
+                            {Math.round(ringModIntensity * 100)}%
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={1}
+                          step={0.01}
+                          value={ringModIntensity}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            setRingModIntensity(v);
+                            ringModHandleRef.current?.setIntensity(v);
+                          }}
+                          className="w-full appearance-none cursor-pointer"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-1">
+                      <button
+                        onClick={() => {
+                          if (ringModHandleRef.current) {
+                            stopRingModPreview();
+                          } else {
+                            ensureRingModPreviewStarted();
+                          }
+                        }}
+                        className={`inline-flex items-center gap-2 px-3 py-1.5 btn-shape text-white text-xs font-medium transition-colors ${
+                          ringModHandleRef.current
+                            ? "bg-white/10 hover:bg-white/20"
+                            : "bg-teal-500/80 hover:bg-teal-500"
+                        }`}
+                      >
+                        {ringModHandleRef.current ? (
+                          <>
+                            <Square size={16} /> Stop
+                          </>
+                        ) : (
+                          <>
+                            <Play size={16} /> Preview
+                          </>
+                        )}
+                      </button>
+                      <button
+                        disabled={!targetLayerId}
+                        onClick={() => {
+                          if (!targetLayerId) return;
+
+                          // Check effect limit
+                          const currentLayer = layers.find(
+                            (l) => l.id === targetLayerId
+                          );
+                          if (
+                            currentLayer?.effects &&
+                            currentLayer.effects.length >= 4
+                          ) {
+                            alert("Maximum of 4 effects allowed per layer");
+                            return;
+                          }
+
+                          const effect = {
+                            id: crypto.randomUUID(),
+                            kind: "ringmod" as const,
+                            frequency: ringModFrequency,
+                            intensity: ringModIntensity,
+                          };
+                          addLayerEffect(targetLayerId, effect);
+                          // Get the current effects and add the new one for immediate engine update
+                          const layerForUpdate = useAppStore
+                            .getState()
+                            .layers.find((l) => l.id === targetLayerId);
+                          const existingEffects = layerForUpdate?.effects || [];
+                          const updatedEffects = [...existingEffects, effect];
+                          // Notify engine about effects change immediately
+                          engines.current[targetLayerId]?.update({
+                            effects: updatedEffects as any,
+                          });
+                        }}
+                        className="inline-flex items-center gap-2 px-3 py-1.5 btn-shape bg-amber-500/80 hover:bg-amber-500 text-white text-xs font-medium transition-colors disabled:opacity-40"
+                      >
+                        <Plus size={16} /> Add to Layer
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Tremolo Effect Card */}
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <div className="text-sm text-white font-medium">
+                        Tremolo
+                      </div>
+                      <div className="text-[11px] text-white/60">
+                        Amplitude modulation for volume trembling
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <div className="flex justify-between text-[11px] text-white/60">
+                          <span>Rate</span>
+                          <span className="text-white/80 font-medium">
+                            {tremoloRate.toFixed(1)} Hz
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0.1}
+                          max={20}
+                          step={0.1}
+                          value={tremoloRate}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            setTremoloRate(v);
+                            tremoloHandleRef.current?.setRate(v);
+                          }}
+                          className="w-full appearance-none cursor-pointer"
+                        />
+                      </div>
+                      <div>
+                        <div className="flex justify-between text-[11px] text-white/60">
+                          <span>Depth</span>
+                          <span className="text-white/80 font-medium">
+                            {Math.round(tremoloDepth * 100)}%
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={1}
+                          step={0.01}
+                          value={tremoloDepth}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            setTremoloDepth(v);
+                            tremoloHandleRef.current?.setDepth(v * 100);
+                          }}
+                          className="w-full appearance-none cursor-pointer"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-1">
+                      <button
+                        onClick={() => {
+                          if (tremoloHandleRef.current) {
+                            stopTremoloPreview();
+                          } else {
+                            ensureTremoloPreviewStarted();
+                          }
+                        }}
+                        className={`inline-flex items-center gap-2 px-3 py-1.5 btn-shape text-white text-xs font-medium transition-colors ${
+                          tremoloHandleRef.current
+                            ? "bg-white/10 hover:bg-white/20"
+                            : "bg-teal-500/80 hover:bg-teal-500"
+                        }`}
+                      >
+                        {tremoloHandleRef.current ? (
+                          <>
+                            <Square size={16} /> Stop
+                          </>
+                        ) : (
+                          <>
+                            <Play size={16} /> Preview
+                          </>
+                        )}
+                      </button>
+                      <button
+                        disabled={!targetLayerId}
+                        onClick={() => {
+                          if (!targetLayerId) return;
+
+                          // Check effect limit
+                          const currentLayer = layers.find(
+                            (l) => l.id === targetLayerId
+                          );
+                          if (
+                            currentLayer?.effects &&
+                            currentLayer.effects.length >= 4
+                          ) {
+                            alert("Maximum of 4 effects allowed per layer");
+                            return;
+                          }
+
+                          const effect = {
+                            id: crypto.randomUUID(),
+                            kind: "tremolo" as const,
+                            rate: tremoloRate,
+                            depth: tremoloDepth,
+                          };
+                          addLayerEffect(targetLayerId, effect);
+                          // Get the current effects and add the new one for immediate engine update
+                          const layerForUpdate = useAppStore
+                            .getState()
+                            .layers.find((l) => l.id === targetLayerId);
+                          const existingEffects = layerForUpdate?.effects || [];
+                          const updatedEffects = [...existingEffects, effect];
+                          // Notify engine about effects change immediately
+                          engines.current[targetLayerId]?.update({
+                            effects: updatedEffects as any,
+                          });
+                        }}
+                        className="inline-flex items-center gap-2 px-3 py-1.5 btn-shape bg-amber-500/80 hover:bg-amber-500 text-white text-xs font-medium transition-colors disabled:opacity-40"
+                      >
+                        <Plus size={16} /> Add to Layer
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Chorus Effect Card */}
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <div className="text-sm text-white font-medium">
+                        Chorus
+                      </div>
+                      <div className="text-[11px] text-white/60">
+                        Rich, shimmering effect with delayed copies
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <div className="flex justify-between text-[11px] text-white/60">
+                          <span>Rate</span>
+                          <span className="text-white/80 font-medium">
+                            {chorusRate.toFixed(1)} Hz
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0.1}
+                          max={5}
+                          step={0.1}
+                          value={chorusRate}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            setChorusRate(v);
+                            chorusHandleRef.current?.setRate(v);
+                          }}
+                          className="w-full appearance-none cursor-pointer"
+                        />
+                      </div>
+                      <div>
+                        <div className="flex justify-between text-[11px] text-white/60">
+                          <span>Depth</span>
+                          <span className="text-white/80 font-medium">
+                            {chorusDepth.toFixed(0)} ms
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={50}
+                          step={1}
+                          value={chorusDepth}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            setChorusDepth(v);
+                            chorusHandleRef.current?.setDepth(v);
+                          }}
+                          className="w-full appearance-none cursor-pointer"
+                        />
+                      </div>
+                      <div>
+                        <div className="flex justify-between text-[11px] text-white/60">
+                          <span>Mix</span>
+                          <span className="text-white/80 font-medium">
+                            {Math.round(chorusMix)}%
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={100}
+                          step={1}
+                          value={chorusMix}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            setChorusMix(v);
+                            chorusHandleRef.current?.setMix(v);
+                          }}
+                          className="w-full appearance-none cursor-pointer"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-1">
+                      <button
+                        onClick={() => {
+                          if (chorusHandleRef.current) {
+                            stopChorusPreview();
+                          } else {
+                            ensureChorusPreviewStarted();
+                          }
+                        }}
+                        className={`inline-flex items-center gap-2 px-3 py-1.5 btn-shape text-white text-xs font-medium transition-colors ${
+                          chorusHandleRef.current
+                            ? "bg-white/10 hover:bg-white/20"
+                            : "bg-teal-500/80 hover:bg-teal-500"
+                        }`}
+                      >
+                        {chorusHandleRef.current ? (
+                          <>
+                            <Square size={16} /> Stop
+                          </>
+                        ) : (
+                          <>
+                            <Play size={16} /> Preview
+                          </>
+                        )}
+                      </button>
+                      <button
+                        disabled={!targetLayerId}
+                        onClick={() => {
+                          if (!targetLayerId) return;
+                          // Check if layer already has 4 effects
+                          const layerForCheck = useAppStore
+                            .getState()
+                            .layers.find((l) => l.id === targetLayerId);
+                          if (
+                            layerForCheck?.effects &&
+                            layerForCheck.effects.length >= 4
+                          ) {
+                            alert("Maximum of 4 effects allowed per layer");
+                            return;
+                          }
+                          const effect = {
+                            id: crypto.randomUUID(),
+                            kind: "chorus" as const,
+                            rate: chorusRate,
+                            depth: chorusDepth,
+                            mix: chorusMix,
+                          };
+                          addLayerEffect(targetLayerId, effect);
+                          // Get the current effects and add the new one for immediate engine update
+                          const layerForUpdate = useAppStore
+                            .getState()
+                            .layers.find((l) => l.id === targetLayerId);
+                          const existingEffects = layerForUpdate?.effects || [];
+                          const updatedEffects = [...existingEffects, effect];
+                          // Notify engine about effects change immediately
+                          engines.current[targetLayerId]?.update({
+                            effects: updatedEffects as any,
+                          });
+                        }}
+                        className="inline-flex items-center gap-2 px-3 py-1.5 btn-shape bg-amber-500/80 hover:bg-amber-500 text-white text-xs font-medium transition-colors disabled:opacity-40"
+                      >
+                        <Plus size={16} /> Add to Layer
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Flanger Effect Card */}
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <div className="text-sm text-white font-medium">
+                        Flanger
+                      </div>
+                      <div className="text-[11px] text-white/60">
+                        Classic swooshing effect with feedback
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <div className="flex justify-between text-[11px] text-white/60">
+                          <span>Rate</span>
+                          <span className="text-white/80 font-medium">
+                            {flangerRate.toFixed(1)} Hz
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0.1}
+                          max={10}
+                          step={0.1}
+                          value={flangerRate}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            setFlangerRate(v);
+                            flangerHandleRef.current?.setRate(v);
+                          }}
+                          className="w-full appearance-none cursor-pointer"
+                        />
+                      </div>
+                      <div>
+                        <div className="flex justify-between text-[11px] text-white/60">
+                          <span>Depth</span>
+                          <span className="text-white/80 font-medium">
+                            {flangerDepth.toFixed(0)} ms
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={10}
+                          step={0.1}
+                          value={flangerDepth}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            setFlangerDepth(v);
+                            flangerHandleRef.current?.setDepth(v);
+                          }}
+                          className="w-full appearance-none cursor-pointer"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <div className="flex justify-between text-[11px] text-white/60">
+                          <span>Feedback</span>
+                          <span className="text-white/80 font-medium">
+                            {Math.round(flangerFeedback)}%
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={95}
+                          step={1}
+                          value={flangerFeedback}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            setFlangerFeedback(v);
+                            flangerHandleRef.current?.setFeedback(v);
+                          }}
+                          className="w-full appearance-none cursor-pointer"
+                        />
+                      </div>
+                      <div>
+                        <div className="flex justify-between text-[11px] text-white/60">
+                          <span>Mix</span>
+                          <span className="text-white/80 font-medium">
+                            {Math.round(flangerMix)}%
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={100}
+                          step={1}
+                          value={flangerMix}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            setFlangerMix(v);
+                            flangerHandleRef.current?.setMix(v);
+                          }}
+                          className="w-full appearance-none cursor-pointer"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-1">
+                      <button
+                        onClick={() => {
+                          if (flangerHandleRef.current) {
+                            stopFlangerPreview();
+                          } else {
+                            ensureFlangerPreviewStarted();
+                          }
+                        }}
+                        className={`inline-flex items-center gap-2 px-3 py-1.5 btn-shape text-white text-xs font-medium transition-colors ${
+                          flangerHandleRef.current
+                            ? "bg-white/10 hover:bg-white/20"
+                            : "bg-teal-500/80 hover:bg-teal-500"
+                        }`}
+                      >
+                        {flangerHandleRef.current ? (
+                          <>
+                            <Square size={16} /> Stop
+                          </>
+                        ) : (
+                          <>
+                            <Play size={16} /> Preview
+                          </>
+                        )}
+                      </button>
+                      <button
+                        disabled={!targetLayerId}
+                        onClick={() => {
+                          if (!targetLayerId) return;
+                          // Check if layer already has 4 effects
+                          const layerForCheck = useAppStore
+                            .getState()
+                            .layers.find((l) => l.id === targetLayerId);
+                          if (
+                            layerForCheck?.effects &&
+                            layerForCheck.effects.length >= 4
+                          ) {
+                            alert("Maximum of 4 effects allowed per layer");
+                            return;
+                          }
+                          const effect = {
+                            id: crypto.randomUUID(),
+                            kind: "flanger" as const,
+                            rate: flangerRate,
+                            depth: flangerDepth,
+                            feedback: flangerFeedback,
+                            mix: flangerMix,
+                          };
+                          addLayerEffect(targetLayerId, effect);
+                          // Get the current effects and add the new one for immediate engine update
+                          const layerForUpdate = useAppStore
+                            .getState()
+                            .layers.find((l) => l.id === targetLayerId);
+                          const existingEffects = layerForUpdate?.effects || [];
+                          const updatedEffects = [...existingEffects, effect];
+                          // Notify engine about effects change immediately
+                          engines.current[targetLayerId]?.update({
+                            effects: updatedEffects as any,
+                          });
+                        }}
+                        className="inline-flex items-center gap-2 px-3 py-1.5 btn-shape bg-amber-500/80 hover:bg-amber-500 text-white text-xs font-medium transition-colors disabled:opacity-40"
+                      >
+                        <Plus size={16} /> Add to Layer
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Phaser Effect Card */}
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <div className="text-sm text-white font-medium">
+                        Phaser
+                      </div>
+                      <div className="text-[11px] text-white/60">
+                        Classic sweeping all-pass filter modulation
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <div className="flex justify-between text-[11px] text-white/60">
+                          <span>Rate</span>
+                          <span className="text-white/80 font-medium">
+                            {phaserRate.toFixed(1)} Hz
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0.1}
+                          max={10}
+                          step={0.1}
+                          value={phaserRate}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            setPhaserRate(v);
+                            phaserHandleRef.current?.setRate(v);
+                          }}
+                          className="w-full appearance-none cursor-pointer"
+                        />
+                      </div>
+                      <div>
+                        <div className="flex justify-between text-[11px] text-white/60">
+                          <span>Depth</span>
+                          <span className="text-white/80 font-medium">
+                            {Math.round(phaserDepth)}%
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={100}
+                          step={1}
+                          value={phaserDepth}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            setPhaserDepth(v);
+                            phaserHandleRef.current?.setDepth(v);
+                          }}
+                          className="w-full appearance-none cursor-pointer"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <div className="flex justify-between text-[11px] text-white/60">
+                          <span>Stages</span>
+                          <span className="text-white/80 font-medium">
+                            {phaserStages}
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={2}
+                          max={8}
+                          step={1}
+                          value={phaserStages}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            setPhaserStages(v);
+                            phaserHandleRef.current?.setStages(v);
+                          }}
+                          className="w-full appearance-none cursor-pointer"
+                        />
+                      </div>
+                      <div>
+                        <div className="flex justify-between text-[11px] text-white/60">
+                          <span>Mix</span>
+                          <span className="text-white/80 font-medium">
+                            {Math.round(phaserMix)}%
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={100}
+                          step={1}
+                          value={phaserMix}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            setPhaserMix(v);
+                            phaserHandleRef.current?.setMix(v);
+                          }}
+                          className="w-full appearance-none cursor-pointer"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-1">
+                      <button
+                        onClick={() => {
+                          if (phaserHandleRef.current) {
+                            stopPhaserPreview();
+                          } else {
+                            ensurePhaserPreviewStarted();
+                          }
+                        }}
+                        className={`inline-flex items-center gap-2 px-3 py-1.5 btn-shape text-white text-xs font-medium transition-colors ${
+                          phaserHandleRef.current
+                            ? "bg-white/10 hover:bg-white/20"
+                            : "bg-teal-500/80 hover:bg-teal-500"
+                        }`}
+                      >
+                        {phaserHandleRef.current ? (
+                          <>
+                            <Square size={16} /> Stop
+                          </>
+                        ) : (
+                          <>
+                            <Play size={16} /> Preview
+                          </>
+                        )}
+                      </button>
+                      <button
+                        disabled={!targetLayerId}
+                        onClick={() => {
+                          if (!targetLayerId) return;
+                          // Check if layer already has 4 effects
+                          const layerForCheck = useAppStore
+                            .getState()
+                            .layers.find((l) => l.id === targetLayerId);
+                          if (
+                            layerForCheck?.effects &&
+                            layerForCheck.effects.length >= 4
+                          ) {
+                            alert("Maximum of 4 effects allowed per layer");
+                            return;
+                          }
+                          const effect = {
+                            id: crypto.randomUUID(),
+                            kind: "phaser" as const,
+                            rate: phaserRate,
+                            depth: phaserDepth,
+                            stages: phaserStages,
+                            mix: phaserMix,
+                          };
+                          addLayerEffect(targetLayerId, effect);
+                          // Get the current effects and add the new one for immediate engine update
+                          const layerForUpdate = useAppStore
+                            .getState()
+                            .layers.find((l) => l.id === targetLayerId);
+                          const existingEffects = layerForUpdate?.effects || [];
+                          const updatedEffects = [...existingEffects, effect];
+                          // Notify engine about effects change immediately
+                          engines.current[targetLayerId]?.update({
+                            effects: updatedEffects as any,
+                          });
+                        }}
+                        className="inline-flex items-center gap-2 px-3 py-1.5 btn-shape bg-amber-500/80 hover:bg-amber-500 text-white text-xs font-medium transition-colors disabled:opacity-40"
+                      >
+                        <Plus size={16} /> Add to Layer
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Ping Pong Delay Effect Card */}
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <div className="text-sm text-white font-medium">
+                        Ping Pong Delay
+                      </div>
+                      <div className="text-[11px] text-white/60">
+                        Stereo delay with alternating channels
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <div className="flex justify-between text-[11px] text-white/60">
+                          <span>Time</span>
+                          <span className="text-white/80 font-medium">
+                            {Math.round(pingpongTime)} ms
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={10}
+                          max={2000}
+                          step={10}
+                          value={pingpongTime}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            setPingpongTime(v);
+                            pingpongHandleRef.current?.setTime(v);
+                          }}
+                          className="w-full appearance-none cursor-pointer"
+                        />
+                      </div>
+                      <div>
+                        <div className="flex justify-between text-[11px] text-white/60">
+                          <span>Feedback</span>
+                          <span className="text-white/80 font-medium">
+                            {Math.round(pingpongFeedback)}%
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={95}
+                          step={1}
+                          value={pingpongFeedback}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            setPingpongFeedback(v);
+                            pingpongHandleRef.current?.setFeedback(v);
+                          }}
+                          className="w-full appearance-none cursor-pointer"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 gap-3">
+                      <div>
+                        <div className="flex justify-between text-[11px] text-white/60">
+                          <span>Mix</span>
+                          <span className="text-white/80 font-medium">
+                            {Math.round(pingpongMix)}%
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={100}
+                          step={1}
+                          value={pingpongMix}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            setPingpongMix(v);
+                            pingpongHandleRef.current?.setMix(v);
+                          }}
+                          className="w-full appearance-none cursor-pointer"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-1">
+                      <button
+                        onClick={() => {
+                          if (pingpongHandleRef.current) {
+                            stopPingPongPreview();
+                          } else {
+                            ensurePingPongPreviewStarted();
+                          }
+                        }}
+                        className={`inline-flex items-center gap-2 px-3 py-1.5 btn-shape text-white text-xs font-medium transition-colors ${
+                          pingpongHandleRef.current
+                            ? "bg-white/10 hover:bg-white/20"
+                            : "bg-teal-500/80 hover:bg-teal-500"
+                        }`}
+                      >
+                        {pingpongHandleRef.current ? (
+                          <>
+                            <Square size={16} /> Stop
+                          </>
+                        ) : (
+                          <>
+                            <Play size={16} /> Preview
+                          </>
+                        )}
+                      </button>
+                      <button
+                        disabled={!targetLayerId}
+                        onClick={() => {
+                          if (!targetLayerId) return;
+                          // Check if layer already has 4 effects
+                          const layerForCheck = useAppStore
+                            .getState()
+                            .layers.find((l) => l.id === targetLayerId);
+                          if (
+                            layerForCheck?.effects &&
+                            layerForCheck.effects.length >= 4
+                          ) {
+                            alert("Maximum of 4 effects allowed per layer");
+                            return;
+                          }
+                          const effect = {
+                            id: crypto.randomUUID(),
+                            kind: "pingpong" as const,
+                            time: pingpongTime,
+                            feedback: pingpongFeedback,
+                            mix: pingpongMix,
+                          };
+                          addLayerEffect(targetLayerId, effect);
+                          // Get the current effects and add the new one for immediate engine update
+                          const layerForUpdate = useAppStore
+                            .getState()
+                            .layers.find((l) => l.id === targetLayerId);
+                          const existingEffects = layerForUpdate?.effects || [];
+                          const updatedEffects = [...existingEffects, effect];
+                          // Notify engine about effects change immediately
+                          engines.current[targetLayerId]?.update({
+                            effects: updatedEffects as any,
+                          });
+                        }}
+                        className="inline-flex items-center gap-2 px-3 py-1.5 btn-shape bg-amber-500/80 hover:bg-amber-500 text-white text-xs font-medium transition-colors disabled:opacity-40"
+                      >
+                        <Plus size={16} /> Add to Layer
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Comb Filter Effect Card */}
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <div className="text-sm text-white font-medium">
+                        Comb Filter
+                      </div>
+                      <div className="text-[11px] text-white/60">
+                        Resonant delay-based filtering
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <div className="flex justify-between text-[11px] text-white/60">
+                          <span>Frequency</span>
+                          <span className="text-white/80 font-medium">
+                            {Math.round(combfilterFrequency)} Hz
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={20}
+                          max={2000}
+                          step={1}
+                          value={combfilterFrequency}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            setCombfilterFrequency(v);
+                            combfilterHandleRef.current?.setFrequency(v);
+                          }}
+                          className="w-full appearance-none cursor-pointer"
+                        />
+                      </div>
+                      <div>
+                        <div className="flex justify-between text-[11px] text-white/60">
+                          <span>Resonance</span>
+                          <span className="text-white/80 font-medium">
+                            {Math.round(combfilterResonance)}%
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={95}
+                          step={1}
+                          value={combfilterResonance}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            setCombfilterResonance(v);
+                            combfilterHandleRef.current?.setResonance(v);
+                          }}
+                          className="w-full appearance-none cursor-pointer"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 gap-3">
+                      <div>
+                        <div className="flex justify-between text-[11px] text-white/60">
+                          <span>Mix</span>
+                          <span className="text-white/80 font-medium">
+                            {Math.round(combfilterMix)}%
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={100}
+                          step={1}
+                          value={combfilterMix}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            setCombfilterMix(v);
+                            combfilterHandleRef.current?.setMix(v);
+                          }}
+                          className="w-full appearance-none cursor-pointer"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-1">
+                      <button
+                        onClick={() => {
+                          if (combfilterHandleRef.current) {
+                            stopCombFilterPreview();
+                          } else {
+                            ensureCombFilterPreviewStarted();
+                          }
+                        }}
+                        className={`inline-flex items-center gap-2 px-3 py-1.5 btn-shape text-white text-xs font-medium transition-colors ${
+                          combfilterHandleRef.current
+                            ? "bg-white/10 hover:bg-white/20"
+                            : "bg-teal-500/80 hover:bg-teal-500"
+                        }`}
+                      >
+                        {combfilterHandleRef.current ? (
+                          <>
+                            <Square size={16} /> Stop
+                          </>
+                        ) : (
+                          <>
+                            <Play size={16} /> Preview
+                          </>
+                        )}
+                      </button>
+                      <button
+                        disabled={!targetLayerId}
+                        onClick={() => {
+                          if (!targetLayerId) return;
+                          // Check if layer already has 4 effects
+                          const layerForCheck = useAppStore
+                            .getState()
+                            .layers.find((l) => l.id === targetLayerId);
+                          if (
+                            layerForCheck?.effects &&
+                            layerForCheck.effects.length >= 4
+                          ) {
+                            alert("Maximum of 4 effects allowed per layer");
+                            return;
+                          }
+                          const effect = {
+                            id: crypto.randomUUID(),
+                            kind: "combfilter" as const,
+                            frequency: combfilterFrequency,
+                            resonance: combfilterResonance,
+                            mix: combfilterMix,
+                          };
+                          addLayerEffect(targetLayerId, effect);
+                          // Get the current effects and add the new one for immediate engine update
+                          const layerForUpdate = useAppStore
+                            .getState()
+                            .layers.find((l) => l.id === targetLayerId);
+                          const existingEffects = layerForUpdate?.effects || [];
+                          const updatedEffects = [...existingEffects, effect];
+                          // Notify engine about effects change immediately
+                          engines.current[targetLayerId]?.update({
+                            effects: updatedEffects as any,
+                          });
+                        }}
+                        className="inline-flex items-center gap-2 px-3 py-1.5 btn-shape bg-amber-500/80 hover:bg-amber-500 text-white text-xs font-medium transition-colors disabled:opacity-40"
+                      >
+                        <Plus size={16} /> Add to Layer
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Acid Filter Effect Card */}
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <div className="text-sm text-white font-medium">
+                        Acid Filter
+                      </div>
+                      <div className="text-[11px] text-white/60">
+                        Classic acid house resonant filter with LFO
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <div className="flex justify-between text-[11px] text-white/60">
+                          <span>Cutoff</span>
+                          <span className="text-white/80 font-medium">
+                            {Math.round(acidfilterCutoff)} Hz
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={20}
+                          max={20000}
+                          step={1}
+                          value={acidfilterCutoff}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            setAcidfilterCutoff(v);
+                            acidfilterHandleRef.current?.setCutoff(v);
+                          }}
+                          className="w-full appearance-none cursor-pointer"
+                        />
+                      </div>
+                      <div>
+                        <div className="flex justify-between text-[11px] text-white/60">
+                          <span>Resonance</span>
+                          <span className="text-white/80 font-medium">
+                            {acidfilterResonance.toFixed(1)}
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={30}
+                          step={0.1}
+                          value={acidfilterResonance}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            setAcidfilterResonance(v);
+                            acidfilterHandleRef.current?.setResonance(v);
+                          }}
+                          className="w-full appearance-none cursor-pointer"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <div className="flex justify-between text-[11px] text-white/60">
+                          <span>LFO Rate</span>
+                          <span className="text-white/80 font-medium">
+                            {acidfilterLfoRate.toFixed(1)} Hz
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0.1}
+                          max={20}
+                          step={0.1}
+                          value={acidfilterLfoRate}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            setAcidfilterLfoRate(v);
+                            acidfilterHandleRef.current?.setLfoRate(v);
+                          }}
+                          className="w-full appearance-none cursor-pointer"
+                        />
+                      </div>
+                      <div>
+                        <div className="flex justify-between text-[11px] text-white/60">
+                          <span>LFO Depth</span>
+                          <span className="text-white/80 font-medium">
+                            {Math.round(acidfilterLfoDepth)} Hz
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={5000}
+                          step={10}
+                          value={acidfilterLfoDepth}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            setAcidfilterLfoDepth(v);
+                            acidfilterHandleRef.current?.setLfoDepth(v);
+                          }}
+                          className="w-full appearance-none cursor-pointer"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 gap-3">
+                      <div>
+                        <div className="flex justify-between text-[11px] text-white/60">
+                          <span>Mix</span>
+                          <span className="text-white/80 font-medium">
+                            {Math.round(acidfilterMix)}%
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={100}
+                          step={1}
+                          value={acidfilterMix}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            setAcidfilterMix(v);
+                            acidfilterHandleRef.current?.setMix(v);
+                          }}
+                          className="w-full appearance-none cursor-pointer"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-1">
+                      <button
+                        onClick={() => {
+                          if (acidfilterHandleRef.current) {
+                            stopAcidFilterPreview();
+                          } else {
+                            ensureAcidFilterPreviewStarted();
+                          }
+                        }}
+                        className={`inline-flex items-center gap-2 px-3 py-1.5 btn-shape text-white text-xs font-medium transition-colors ${
+                          acidfilterHandleRef.current
+                            ? "bg-white/10 hover:bg-white/20"
+                            : "bg-teal-500/80 hover:bg-teal-500"
+                        }`}
+                      >
+                        {acidfilterHandleRef.current ? (
+                          <>
+                            <Square size={16} /> Stop
+                          </>
+                        ) : (
+                          <>
+                            <Play size={16} /> Preview
+                          </>
+                        )}
+                      </button>
+                      <button
+                        disabled={!targetLayerId}
+                        onClick={() => {
+                          if (!targetLayerId) return;
+                          // Check if layer already has 4 effects
+                          const layerForCheck = useAppStore
+                            .getState()
+                            .layers.find((l) => l.id === targetLayerId);
+                          if (
+                            layerForCheck?.effects &&
+                            layerForCheck.effects.length >= 4
+                          ) {
+                            alert("Maximum of 4 effects allowed per layer");
+                            return;
+                          }
+                          const effect = {
+                            id: crypto.randomUUID(),
+                            kind: "acidfilter" as const,
+                            cutoff: acidfilterCutoff,
+                            resonance: acidfilterResonance,
+                            lfoRate: acidfilterLfoRate,
+                            lfoDepth: acidfilterLfoDepth,
+                            mix: acidfilterMix,
+                          };
+                          addLayerEffect(targetLayerId, effect);
+                          // Get the current effects and add the new one for immediate engine update
+                          const layerForUpdate = useAppStore
+                            .getState()
+                            .layers.find((l) => l.id === targetLayerId);
+                          const existingEffects = layerForUpdate?.effects || [];
+                          const updatedEffects = [...existingEffects, effect];
+                          // Notify engine about effects change immediately
+                          engines.current[targetLayerId]?.update({
+                            effects: updatedEffects as any,
+                          });
+                        }}
+                        className="inline-flex items-center gap-2 px-3 py-1.5 btn-shape bg-amber-500/80 hover:bg-amber-500 text-white text-xs font-medium transition-colors disabled:opacity-40"
+                      >
+                        <Plus size={16} /> Add to Layer
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Gate Effect Card */}
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <div className="text-sm text-white font-medium">
+                        Gate Effect
+                      </div>
+                      <div className="text-[11px] text-white/60">
+                        Rhythmic gating and pumping compression
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <div className="flex justify-between text-[11px] text-white/60">
+                          <span>Rate</span>
+                          <span className="text-white/80 font-medium">
+                            {gateRate.toFixed(1)} Hz
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0.1}
+                          max={20}
+                          step={0.1}
+                          value={gateRate}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            setGateRate(v);
+                            gateHandleRef.current?.setRate(v);
+                          }}
+                          className="w-full appearance-none cursor-pointer"
+                        />
+                      </div>
+                      <div>
+                        <div className="flex justify-between text-[11px] text-white/60">
+                          <span>Threshold</span>
+                          <span className="text-white/80 font-medium">
+                            {Math.round(gateThreshold)}%
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={100}
+                          step={1}
+                          value={gateThreshold}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            setGateThreshold(v);
+                            gateHandleRef.current?.setThreshold(v);
+                          }}
+                          className="w-full appearance-none cursor-pointer"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <div className="flex justify-between text-[11px] text-white/60">
+                          <span>Attack</span>
+                          <span className="text-white/80 font-medium">
+                            {Math.round(gateAttack)} ms
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={1}
+                          max={100}
+                          step={1}
+                          value={gateAttack}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            setGateAttack(v);
+                            gateHandleRef.current?.setAttack(v);
+                          }}
+                          className="w-full appearance-none cursor-pointer"
+                        />
+                      </div>
+                      <div>
+                        <div className="flex justify-between text-[11px] text-white/60">
+                          <span>Release</span>
+                          <span className="text-white/80 font-medium">
+                            {Math.round(gateRelease)} ms
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={10}
+                          max={1000}
+                          step={10}
+                          value={gateRelease}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            setGateRelease(v);
+                            gateHandleRef.current?.setRelease(v);
+                          }}
+                          className="w-full appearance-none cursor-pointer"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 gap-3">
+                      <div>
+                        <div className="flex justify-between text-[11px] text-white/60">
+                          <span>Mix</span>
+                          <span className="text-white/80 font-medium">
+                            {Math.round(gateMix)}%
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={100}
+                          step={1}
+                          value={gateMix}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            setGateMix(v);
+                            gateHandleRef.current?.setMix(v);
+                          }}
+                          className="w-full appearance-none cursor-pointer"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-1">
+                      <button
+                        onClick={() => {
+                          if (gateHandleRef.current) {
+                            stopGatePreview();
+                          } else {
+                            ensureGatePreviewStarted();
+                          }
+                        }}
+                        className={`inline-flex items-center gap-2 px-3 py-1.5 btn-shape text-white text-xs font-medium transition-colors ${
+                          gateHandleRef.current
+                            ? "bg-white/10 hover:bg-white/20"
+                            : "bg-teal-500/80 hover:bg-teal-500"
+                        }`}
+                      >
+                        {gateHandleRef.current ? (
+                          <>
+                            <Square size={16} /> Stop
+                          </>
+                        ) : (
+                          <>
+                            <Play size={16} /> Preview
+                          </>
+                        )}
+                      </button>
+                      <button
+                        disabled={!targetLayerId}
+                        onClick={() => {
+                          if (!targetLayerId) return;
+                          // Check if layer already has 4 effects
+                          const layerForCheck = useAppStore
+                            .getState()
+                            .layers.find((l) => l.id === targetLayerId);
+                          if (
+                            layerForCheck?.effects &&
+                            layerForCheck.effects.length >= 4
+                          ) {
+                            alert("Maximum of 4 effects allowed per layer");
+                            return;
+                          }
+                          const effect = {
+                            id: crypto.randomUUID(),
+                            kind: "gate" as const,
+                            rate: gateRate,
+                            threshold: gateThreshold,
+                            attack: gateAttack,
+                            release: gateRelease,
+                            mix: gateMix,
+                          };
+                          addLayerEffect(targetLayerId, effect);
+                          // Get the current effects and add the new one for immediate engine update
+                          const layerForUpdate = useAppStore
+                            .getState()
+                            .layers.find((l) => l.id === targetLayerId);
+                          const existingEffects = layerForUpdate?.effects || [];
+                          const updatedEffects = [...existingEffects, effect];
+                          // Notify engine about effects change immediately
+                          engines.current[targetLayerId]?.update({
+                            effects: updatedEffects as any,
+                          });
+                        }}
+                        className="inline-flex items-center gap-2 px-3 py-1.5 btn-shape bg-amber-500/80 hover:bg-amber-500 text-white text-xs font-medium transition-colors disabled:opacity-40"
+                      >
+                        <Plus size={16} /> Add to Layer
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Harmonic Exciter Effect Card */}
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <div className="text-sm text-white font-medium">
+                        Harmonic Exciter
+                      </div>
+                      <div className="text-[11px] text-white/60">
+                        Adds brightness and harmonic enhancement
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <div className="flex justify-between text-[11px] text-white/60">
+                          <span>Drive</span>
+                          <span className="text-white/80 font-medium">
+                            {Math.round(harmonicDrive)}%
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={100}
+                          step={1}
+                          value={harmonicDrive}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            setHarmonicDrive(v);
+                            harmonicHandleRef.current?.setDrive(v);
+                          }}
+                          className="w-full appearance-none cursor-pointer"
+                        />
+                      </div>
+                      <div>
+                        <div className="flex justify-between text-[11px] text-white/60">
+                          <span>Harmonics</span>
+                          <span className="text-white/80 font-medium">
+                            {Math.round(harmonicHarmonics)}%
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={100}
+                          step={1}
+                          value={harmonicHarmonics}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            setHarmonicHarmonics(v);
+                            harmonicHandleRef.current?.setHarmonics(v);
+                          }}
+                          className="w-full appearance-none cursor-pointer"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <div className="flex justify-between text-[11px] text-white/60">
+                          <span>Tone</span>
+                          <span className="text-white/80 font-medium">
+                            {Math.round(harmonicTone)}%
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={100}
+                          step={1}
+                          value={harmonicTone}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            setHarmonicTone(v);
+                            harmonicHandleRef.current?.setTone(v);
+                          }}
+                          className="w-full appearance-none cursor-pointer"
+                        />
+                      </div>
+                      <div>
+                        <div className="flex justify-between text-[11px] text-white/60">
+                          <span>Mix</span>
+                          <span className="text-white/80 font-medium">
+                            {Math.round(harmonicMix)}%
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={100}
+                          step={1}
+                          value={harmonicMix}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            setHarmonicMix(v);
+                            harmonicHandleRef.current?.setMix(v);
+                          }}
+                          className="w-full appearance-none cursor-pointer"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-1">
+                      <button
+                        onClick={() => {
+                          if (harmonicHandleRef.current) {
+                            stopHarmonicExciterPreview();
+                          } else {
+                            ensureHarmonicExciterPreviewStarted();
+                          }
+                        }}
+                        className={`inline-flex items-center gap-2 px-3 py-1.5 btn-shape text-white text-xs font-medium transition-colors ${
+                          harmonicHandleRef.current
+                            ? "bg-white/10 hover:bg-white/20"
+                            : "bg-teal-500/80 hover:bg-teal-500"
+                        }`}
+                      >
+                        {harmonicHandleRef.current ? (
+                          <>
+                            <Square size={16} /> Stop
+                          </>
+                        ) : (
+                          <>
+                            <Play size={16} /> Preview
+                          </>
+                        )}
+                      </button>
+                      <button
+                        disabled={!targetLayerId}
+                        onClick={() => {
+                          if (!targetLayerId) return;
+                          // Check if layer already has 4 effects
+                          const layerForCheck = useAppStore
+                            .getState()
+                            .layers.find((l) => l.id === targetLayerId);
+                          if (
+                            layerForCheck?.effects &&
+                            layerForCheck.effects.length >= 4
+                          ) {
+                            alert("Maximum of 4 effects allowed per layer");
+                            return;
+                          }
+                          const effect = {
+                            id: crypto.randomUUID(),
+                            kind: "harmonicexciter" as const,
+                            drive: harmonicDrive,
+                            harmonics: harmonicHarmonics,
+                            tone: harmonicTone,
+                            mix: harmonicMix,
+                          };
+                          addLayerEffect(targetLayerId, effect);
+                          // Get the current effects and add the new one for immediate engine update
+                          const layerForUpdate = useAppStore
+                            .getState()
+                            .layers.find((l) => l.id === targetLayerId);
+                          const existingEffects = layerForUpdate?.effects || [];
+                          const updatedEffects = [...existingEffects, effect];
+                          // Notify engine about effects change immediately
+                          engines.current[targetLayerId]?.update({
+                            effects: updatedEffects as any,
+                          });
+                        }}
+                        className="inline-flex items-center gap-2 px-3 py-1.5 btn-shape bg-amber-500/80 hover:bg-amber-500 text-white text-xs font-medium transition-colors disabled:opacity-40"
+                      >
+                        <Plus size={16} /> Add to Layer
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Placeholder for future effects */}
                 <div className="rounded-xl border border-white/10 bg-white/5 p-3">
                   <div className="text-[11px] text-white/60">
@@ -2356,7 +4847,7 @@ export default function Mixer() {
                 </div>
               </div>
             </div>
-          </aside>
+          </div>
         </div>
       )}
 
