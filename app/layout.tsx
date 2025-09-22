@@ -90,6 +90,9 @@ export const metadata: Metadata = {
   icons: {
     other: [{ rel: "mask-icon", url: "/favicon.ico" }],
   },
+  verification: {
+    google: "sxwVueaYMYESOpHLJg3aqdOZV6ZcK0Y73A1nJOt1GZA",
+  },
 };
 
 export const viewport: Viewport = {
