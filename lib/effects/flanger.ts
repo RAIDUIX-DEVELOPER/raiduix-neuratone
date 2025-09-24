@@ -14,6 +14,7 @@ export interface FlangerNodeHandle {
   rightDelay: DelayNode;
   leftFeedback: GainNode;
   rightFeedback: GainNode;
+  rightLfoGain: GainNode;
   // Envelope follower nodes
   envelopeFollower: GainNode;
   envelopeAnalyzer: AnalyserNode;
@@ -197,6 +198,7 @@ export function createFlangerNode(
     rightDelay,
     leftFeedback,
     rightFeedback,
+    rightLfoGain,
     envelopeFollower,
     envelopeAnalyzer,
     envelopeModGain,
@@ -248,6 +250,7 @@ export function createFlangerNode(
         rightDelay.disconnect();
         leftFeedback.disconnect();
         rightFeedback.disconnect();
+        rightLfoGain.disconnect();
 
         // Disconnect envelope follower nodes
         envelopeFollower.disconnect();
@@ -262,49 +265,69 @@ export function createFlangerNode(
     },
 
     setRate(newRate: number) {
-      handle.rate = newRate;
-      lfoOscillator.frequency.setValueAtTime(newRate, context.currentTime);
+      // Validate and clamp the rate value
+      const validRate = typeof newRate === "number" && isFinite(newRate) ? newRate : 0.5;
+      const clampedRate = Math.max(0.1, Math.min(20, validRate));
+      
+      handle.rate = clampedRate;
+      lfoOscillator.frequency.setValueAtTime(clampedRate, context.currentTime);
     },
 
     setDepth(newDepth: number) {
-      handle.depth = newDepth;
+      // Validate and clamp the depth value
+      const validDepth = typeof newDepth === "number" && isFinite(newDepth) ? newDepth : 2;
+      const clampedDepth = Math.max(0, Math.min(20, validDepth));
+      
+      handle.depth = clampedDepth;
       // Update LFO gain to control flanger depth (delay time modulation)
-      lfoGain.gain.setValueAtTime(newDepth / 1000, context.currentTime);
+      lfoGain.gain.setValueAtTime(clampedDepth / 1000, context.currentTime);
     },
 
     setFeedback(newFeedback: number) {
-      handle.feedbackAmount = newFeedback;
+      // Validate and clamp the feedback value
+      const validFeedback = typeof newFeedback === "number" && isFinite(newFeedback) ? newFeedback : 50;
+      const clampedFeedback = Math.max(0, Math.min(95, validFeedback));
+      
+      handle.feedbackAmount = clampedFeedback;
       // Limit feedback to prevent runaway oscillation
-      const safeLevel = Math.min(0.95, newFeedback / 100);
+      const safeLevel = clampedFeedback / 100;
       feedback.gain.setValueAtTime(safeLevel, context.currentTime);
+      leftFeedback.gain.setValueAtTime(safeLevel, context.currentTime);
+      rightFeedback.gain.setValueAtTime(safeLevel, context.currentTime);
     },
 
     setMix(newMix: number) {
-      handle.mix = newMix;
-      const wetLevel = newMix / 100;
+      // Validate and clamp the mix value
+      const validMix = typeof newMix === "number" && isFinite(newMix) ? newMix : 50;
+      const clampedMix = Math.max(0, Math.min(100, validMix));
+      
+      handle.mix = clampedMix;
+      const wetLevel = clampedMix / 100;
       const dryLevel = 1 - wetLevel;
       wetGain.gain.setValueAtTime(wetLevel, context.currentTime);
       dryGain.gain.setValueAtTime(dryLevel, context.currentTime);
     },
 
     setStereoWidth(newWidth: number) {
-      handle.stereoWidth = newWidth;
+      // Validate and clamp the width value
+      const validWidth = typeof newWidth === "number" && isFinite(newWidth) ? newWidth : 70;
+      const clampedWidth = Math.max(0, Math.min(100, validWidth));
+      
+      handle.stereoWidth = clampedWidth;
       // Update right delay time based on stereo width
-      const rightDelayTime = 0.003 + (newWidth / 100) * 0.002;
+      const rightDelayTime = 0.003 + (clampedWidth / 100) * 0.002;
       rightDelay.delayTime.setValueAtTime(rightDelayTime, context.currentTime);
 
       // Update right LFO inversion amount based on stereo width
-      const rightLfoGain = context.createGain();
-      rightLfoGain.gain.value = -1 * (newWidth / 100);
-
-      // Reconnect with new width settings
-      lfoGain.disconnect(rightDelay.delayTime);
-      lfoGain.connect(rightLfoGain);
-      rightLfoGain.connect(rightDelay.delayTime);
+      rightLfoGain.gain.setValueAtTime(-1 * (clampedWidth / 100), context.currentTime);
     },
 
     setEnvelopeAmount(newAmount: number) {
-      handle.envelopeAmount = newAmount;
+      // Validate and clamp the envelope amount value
+      const validAmount = typeof newAmount === "number" && isFinite(newAmount) ? newAmount : 30;
+      const clampedAmount = Math.max(0, Math.min(100, validAmount));
+      
+      handle.envelopeAmount = clampedAmount;
       // Envelope amount is handled in the envelope processor function
       // The new value will be used in the next envelope update cycle
     },

@@ -256,9 +256,15 @@ const ambientSources: Record<string, string> = {
 let sharedCtx: AudioContext | null = null;
 function getCtx() {
   if (typeof window === "undefined") return null;
-  if (!sharedCtx)
-    sharedCtx = new (window.AudioContext ||
-      (window as any).webkitAudioContext)();
+  if (!sharedCtx) {
+    try {
+      sharedCtx = new (window.AudioContext ||
+        (window as any).webkitAudioContext)();
+    } catch (error) {
+      console.error("Failed to create AudioContext:", error);
+      return null;
+    }
+  }
   return sharedCtx;
 }
 
@@ -1082,7 +1088,17 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
           }
         } catch {}
       } else if (lOsc && rOsc && ctx) {
-        ctx.resume();
+        try {
+          await ctx.resume();
+        } catch (error) {
+          console.error("Failed to resume AudioContext:", error);
+          // Try to recreate context if resume fails
+          const newCtx = getCtx();
+          if (newCtx && newCtx !== ctx) {
+            ctx = newCtx;
+            await ensure();
+          }
+        }
         try {
           lOsc.start();
           rOsc.start();
@@ -1102,6 +1118,7 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
               (rOsc as OscillatorNode).start();
             }
           } else {
+            console.error("Failed to start oscillators:", e);
             throw e;
           }
         }

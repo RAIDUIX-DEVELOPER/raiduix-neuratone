@@ -264,6 +264,12 @@ export function createPhaserNode(
         lfoOscillator.disconnect();
         lfoGain.disconnect();
         allPassFilters.forEach((filter) => filter.disconnect());
+        notchFilters.forEach((filter) => filter.disconnect());
+        feedbackGain.disconnect();
+        feedbackDelay.disconnect();
+        if (shaperNode) {
+          shaperNode.disconnect();
+        }
         inputGain.disconnect();
         outputGain.disconnect();
         wetGain.disconnect();
@@ -274,66 +280,98 @@ export function createPhaserNode(
     },
 
     setRate(newRate: number) {
-      handle.rate = newRate;
-      lfoOscillator.frequency.setValueAtTime(newRate, context.currentTime);
+      // Validate and clamp the rate value
+      const validRate = typeof newRate === "number" && isFinite(newRate) ? newRate : 0.5;
+      const clampedRate = Math.max(0.1, Math.min(20, validRate));
+      
+      handle.rate = clampedRate;
+      lfoOscillator.frequency.setValueAtTime(clampedRate, context.currentTime);
     },
 
     setDepth(newDepth: number) {
-      handle.depth = newDepth;
+      // Validate and clamp the depth value
+      const validDepth = typeof newDepth === "number" && isFinite(newDepth) ? newDepth : 100;
+      const clampedDepth = Math.max(0, Math.min(100, validDepth));
+      
+      handle.depth = clampedDepth;
       // Update LFO gain to control phaser depth
-      const scaledDepth = (newDepth / 100) * 5000;
+      const scaledDepth = (clampedDepth / 100) * 5000;
       lfoGain.gain.setValueAtTime(scaledDepth, context.currentTime);
     },
 
     setStages(newStages: number) {
-      handle.stages = newStages;
+      // Validate and clamp the stages value
+      const validStages = typeof newStages === "number" && isFinite(newStages) ? newStages : 4;
+      const clampedStages = Math.max(1, Math.min(12, Math.round(validStages)));
+      
+      handle.stages = clampedStages;
       // Recreate filter chain with new number of stages
-      createFilterChain(newStages);
+      createFilterChain(clampedStages);
     },
 
     setMix(newMix: number) {
-      handle.mix = newMix;
-      const wetLevel = newMix / 100;
+      // Validate and clamp the mix value
+      const validMix = typeof newMix === "number" && isFinite(newMix) ? newMix : 50;
+      const clampedMix = Math.max(0, Math.min(100, validMix));
+      
+      handle.mix = clampedMix;
+      const wetLevel = clampedMix / 100;
       const dryLevel = 1 - wetLevel;
       wetGain.gain.setValueAtTime(wetLevel, context.currentTime);
       dryGain.gain.setValueAtTime(dryLevel, context.currentTime);
     },
 
     setNotchDepth(newNotchDepth: number) {
-      handle.notchDepth = newNotchDepth;
+      // Validate and clamp the notch depth value
+      const validNotchDepth = typeof newNotchDepth === "number" && isFinite(newNotchDepth) ? newNotchDepth : 70;
+      const clampedNotchDepth = Math.max(0, Math.min(100, validNotchDepth));
+      
+      handle.notchDepth = clampedNotchDepth;
       // Update notch filter Q values and gains
       notchFilters.forEach((filter) => {
-        filter.Q.setValueAtTime(newNotchDepth / 10, context.currentTime);
-        filter.gain.setValueAtTime(-(newNotchDepth / 10), context.currentTime);
+        filter.Q.setValueAtTime(clampedNotchDepth / 10, context.currentTime);
+        filter.gain.setValueAtTime(-(clampedNotchDepth / 10), context.currentTime);
       });
     },
 
     setResonance(newResonance: number) {
-      handle.resonance = newResonance;
+      // Validate and clamp the resonance value
+      const validResonance = typeof newResonance === "number" && isFinite(newResonance) ? newResonance : 8;
+      const clampedResonance = Math.max(0.1, Math.min(30, validResonance));
+      
+      handle.resonance = clampedResonance;
       // Update all-pass filter Q values
       allPassFilters.forEach((filter) => {
-        filter.Q.setValueAtTime(newResonance / 10, context.currentTime);
+        filter.Q.setValueAtTime(clampedResonance / 10, context.currentTime);
       });
     },
 
     setFeedback(newFeedback: number) {
-      handle.feedback = newFeedback;
+      // Validate and clamp the feedback value
+      const validFeedback = typeof newFeedback === "number" && isFinite(newFeedback) ? newFeedback : 20;
+      const clampedFeedback = Math.max(0, Math.min(95, validFeedback));
+      
+      handle.feedback = clampedFeedback;
       // Update feedback gain with safety limiting
-      const safeGain = Math.min((newFeedback / 100) * 0.8, 0.95); // Max 95% to prevent instability
+      const safeGain = Math.min((clampedFeedback / 100) * 0.8, 0.95); // Max 95% to prevent instability
       feedbackGain.gain.setValueAtTime(safeGain, context.currentTime);
     },
 
     setLfoShape(newShape: "sine" | "triangle" | "sawtooth") {
-      handle.lfoShape = newShape;
+      // Validate the shape value
+      const validShapes: ("sine" | "triangle" | "sawtooth")[] = ["sine", "triangle", "sawtooth"];
+      const validShape = validShapes.includes(newShape) ? newShape : "sine";
+      
+      handle.lfoShape = validShape;
 
       // If we have a wave shaper, update its curve
       if (shaperNode) {
-        const curve = createWaveShapeCurve(newShape);
+        const curve = createWaveShapeCurve(validShape);
         (shaperNode as any).curve = curve;
-      } else if (newShape !== "sine") {
+      } else if (validShape !== "sine") {
         // Create new shaper if we need non-sine shapes
         const newShaper = context.createWaveShaper();
-        (newShaper as any).curve = createWaveShapeCurve(newShape);
+        (newShaper as any).curve = createWaveShapeCurve(validShape);
 
         // Reconnect LFO through shaper
         lfoOscillator.disconnect();

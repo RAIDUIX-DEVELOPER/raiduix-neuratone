@@ -23,7 +23,12 @@ const workletLoadedByCtx = new WeakMap<AudioContext, Promise<void>>();
 async function ensureWorklet(ctx: AudioContext) {
   let p = workletLoadedByCtx.get(ctx);
   if (!p) {
-    p = ctx.audioWorklet.addModule("/worklets/noise-processor.js");
+    p = ctx.audioWorklet.addModule("/worklets/noise-processor.js").catch((error) => {
+      console.error("Failed to load noise processor worklet:", error);
+      // Remove the failed promise from cache so we can retry
+      workletLoadedByCtx.delete(ctx);
+      throw error;
+    });
     workletLoadedByCtx.set(ctx, p);
   }
   await p;
@@ -57,47 +62,88 @@ export async function createNoiseNode(
   // chain: noise -> filter -> panner
   noise.connect(filter).connect(panner);
 
-  const setType = (t: NoiseType) =>
-    noise.port.postMessage({ type: "setType", value: t });
+  const setType = (t: NoiseType) => {
+    // Validate the noise type
+    const validTypes: NoiseType[] = ["white", "pink", "brown"];
+    const validType = validTypes.includes(t) ? t : "white";
+    try {
+      noise.port.postMessage({ type: "setType", value: validType });
+    } catch (error) {
+      console.error("Error setting noise type:", error);
+    }
+  };
   if (opts?.type) setType(opts.type);
 
   const setGain = (linear: number) => {
-    const v = Math.max(0, Math.min(1, linear));
-    noise.parameters.get("gain")!.setValueAtTime(v, ctx.currentTime);
+    const validGain = typeof linear === "number" && isFinite(linear) ? linear : 0.25;
+    const v = Math.max(0, Math.min(1, validGain));
+    try {
+      noise.parameters.get("gain")!.setValueAtTime(v, ctx.currentTime);
+    } catch (error) {
+      console.error("Error setting noise gain:", error);
+    }
   };
 
-  const setPan = (pan: number) =>
-    panner.pan.setValueAtTime(Math.max(-1, Math.min(1, pan)), ctx.currentTime);
+  const setPan = (pan: number) => {
+    const validPan = typeof pan === "number" && isFinite(pan) ? pan : 0;
+    const clampedPan = Math.max(-1, Math.min(1, validPan));
+    try {
+      panner.pan.setValueAtTime(clampedPan, ctx.currentTime);
+    } catch (error) {
+      console.error("Error setting pan:", error);
+    }
+  };
 
-  const setLpf = (hz: number) =>
-    filter.frequency.setValueAtTime(
-      Math.max(20, Math.min(20000, hz)),
-      ctx.currentTime
-    );
+  const setLpf = (hz: number) => {
+    const validHz = typeof hz === "number" && isFinite(hz) ? hz : 20000;
+    const clampedHz = Math.max(20, Math.min(20000, validHz));
+    try {
+      filter.frequency.setValueAtTime(clampedHz, ctx.currentTime);
+    } catch (error) {
+      console.error("Error setting filter frequency:", error);
+    }
+  };
 
   // Autopan LFO: lfo -> gain -> panner.pan
   let lfo: OscillatorNode | null = null;
   let lfoGain: GainNode | null = null;
   const startAutoPan = (rateHz: number, depth: number) => {
-    const rate = Math.max(0.001, Math.min(5, rateHz || 0));
-    const dep = Math.max(0, Math.min(1, depth || 0));
+    const validRate = typeof rateHz === "number" && isFinite(rateHz) ? rateHz : 0;
+    const validDepth = typeof depth === "number" && isFinite(depth) ? depth : 0;
+    const rate = Math.max(0.001, Math.min(5, validRate));
+    const dep = Math.max(0, Math.min(1, validDepth));
+    
     if (lfo) {
       // update existing
       try {
         lfo.frequency.setValueAtTime(rate, ctx.currentTime);
         if (lfoGain) lfoGain.gain.setValueAtTime(dep, ctx.currentTime);
-      } catch {}
+      } catch (error) {
+        console.error("Error updating autopan:", error);
+      }
       return;
     }
-    lfo = ctx.createOscillator();
-    lfo.type = "sine";
-    lfo.frequency.value = rate;
-    lfoGain = ctx.createGain();
-    lfoGain.gain.value = dep; // depth maps to pan range [-dep..+dep]
-    lfo.connect(lfoGain).connect(panner.pan);
+    
     try {
+      lfo = ctx.createOscillator();
+      lfo.type = "sine";
+      lfo.frequency.value = rate;
+      lfoGain = ctx.createGain();
+      lfoGain.gain.value = dep; // depth maps to pan range [-dep..+dep]
+      lfo.connect(lfoGain).connect(panner.pan);
       lfo.start();
-    } catch {}
+    } catch (error) {
+      console.error("Error starting autopan:", error);
+      // Clean up if error occurred
+      if (lfo) {
+        try { lfo.disconnect(); } catch {}
+        lfo = null;
+      }
+      if (lfoGain) {
+        try { lfoGain.disconnect(); } catch {}
+        lfoGain = null;
+      }
+    }
   };
   const stopAutoPan = () => {
     if (lfo) {
@@ -128,12 +174,19 @@ export async function createNoiseNode(
     setType,
     setGain,
     fadeTo: (linear: number, seconds: number) => {
-      const v = Math.max(0, Math.min(1, linear));
-      const t = Math.max(0.01, seconds || 0.01);
-      const param = noise.parameters.get("gain")!;
-      param.cancelScheduledValues(ctx.currentTime);
-      param.setValueAtTime(param.value as number, ctx.currentTime);
-      param.linearRampToValueAtTime(v, ctx.currentTime + t);
+      const validLinear = typeof linear === "number" && isFinite(linear) ? linear : 0.25;
+      const validSeconds = typeof seconds === "number" && isFinite(seconds) ? seconds : 0.01;
+      const v = Math.max(0, Math.min(1, validLinear));
+      const t = Math.max(0.01, validSeconds);
+      
+      try {
+        const param = noise.parameters.get("gain")!;
+        param.cancelScheduledValues(ctx.currentTime);
+        param.setValueAtTime(param.value as number, ctx.currentTime);
+        param.linearRampToValueAtTime(v, ctx.currentTime + t);
+      } catch (error) {
+        console.error("Error fading noise:", error);
+      }
     },
     setPan,
     setLpf,
@@ -143,15 +196,25 @@ export async function createNoiseNode(
     disconnect: () => panner.disconnect(),
     dispose: () => {
       try {
-        noise.disconnect();
-      } catch {}
-      try {
         stopAutoPan();
-        panner.disconnect();
-      } catch {}
+      } catch (error) {
+        console.error("Error stopping autopan:", error);
+      }
+      try {
+        noise.disconnect();
+      } catch (error) {
+        console.error("Error disconnecting noise node:", error);
+      }
       try {
         filter.disconnect();
-      } catch {}
+      } catch (error) {
+        console.error("Error disconnecting filter:", error);
+      }
+      try {
+        panner.disconnect();
+      } catch (error) {
+        console.error("Error disconnecting panner:", error);
+      }
     },
   };
 }

@@ -1,8 +1,8 @@
-import type { AudioContext } from "standardized-audio-context";
+import type { AudioContext, GainNode } from "standardized-audio-context";
 
 export interface HarmonicExciterNodeHandle {
-  inputGain: any;
-  outputGain: any;
+  inputGain: GainNode<AudioContext>;
+  outputGain: GainNode<AudioContext>;
   dispose: () => void;
   start: () => void;
   stop: () => void;
@@ -161,19 +161,31 @@ export function createHarmonicExciterNode(
       }
     },
     setDrive(newDrive: number) {
-      drive = Math.max(0, Math.min(100, newDrive));
+      // Validate and clamp the drive value
+      const validDrive = typeof newDrive === "number" && isFinite(newDrive) ? newDrive : 30;
+      const clampedDrive = Math.max(0, Math.min(100, validDrive));
+      drive = clampedDrive;
       updateDrive();
     },
     setHarmonics(newHarmonics: number) {
-      harmonics = Math.max(0, Math.min(100, newHarmonics));
+      // Validate and clamp the harmonics value
+      const validHarmonics = typeof newHarmonics === "number" && isFinite(newHarmonics) ? newHarmonics : 50;
+      const clampedHarmonics = Math.max(0, Math.min(100, validHarmonics));
+      harmonics = clampedHarmonics;
       updateHarmonics();
     },
     setTone(newTone: number) {
-      tone = Math.max(0, Math.min(100, newTone));
+      // Validate and clamp the tone value
+      const validTone = typeof newTone === "number" && isFinite(newTone) ? newTone : 50;
+      const clampedTone = Math.max(0, Math.min(100, validTone));
+      tone = clampedTone;
       updateTone();
     },
     setMix(newMix: number) {
-      mix = Math.max(0, Math.min(100, newMix));
+      // Validate and clamp the mix value
+      const validMix = typeof newMix === "number" && isFinite(newMix) ? newMix : 50;
+      const clampedMix = Math.max(0, Math.min(100, validMix));
+      mix = clampedMix;
       updateMix();
     },
   };
