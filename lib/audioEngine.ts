@@ -630,9 +630,11 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
           const handle = createFlangerNode(
             ctxLocal,
             fx.rate ?? 0.5,
-            fx.depth ?? 50,
-            fx.feedback ?? 0,
-            fx.mix ?? 50
+            fx.depth ?? 2,
+            fx.feedback ?? 50,
+            fx.mix ?? 50,
+            fx.stereoWidth ?? 70,
+            fx.envelopeAmount ?? 30
           );
           flangerHandles.set(fx.id, handle);
           if (playing) {
@@ -640,20 +642,25 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
           }
         } else {
           existing.setRate(fx.rate ?? 0.5);
-          existing.setDepth(fx.depth ?? 50);
-          existing.setFeedback(fx.feedback ?? 0);
+          existing.setDepth(fx.depth ?? 2);
+          existing.setFeedback(fx.feedback ?? 50);
           existing.setMix(fx.mix ?? 50);
-          // Effect state will be managed by effect chain rebuilding
+          if (fx.stereoWidth !== undefined) existing.setStereoWidth(fx.stereoWidth);
+          if (fx.envelopeAmount !== undefined) existing.setEnvelopeAmount(fx.envelopeAmount);
         }
       } else if (fx.kind === "phaser") {
         const existing = phaserHandles.get(fx.id);
         if (!existing) {
           const handle = createPhaserNode(
             ctxLocal,
-            fx.rate,
-            fx.depth,
-            fx.feedback,
-            fx.stages
+            fx.rate ?? 0.5,
+            fx.depth ?? 100,
+            fx.stages ?? 4,
+            fx.mix ?? 50,
+            fx.notchDepth ?? 70,
+            fx.resonance ?? 8,
+            fx.feedback ?? 20,
+            fx.lfoShape ?? "sine"
           );
           phaserHandles.set(fx.id, handle);
           if (playing) {
@@ -661,72 +668,79 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
           }
         } else {
           existing.setRate(fx.rate ?? 0.5);
-          existing.setDepth(fx.depth ?? 50);
-          existing.setFeedback(fx.feedback ?? 0);
+          existing.setDepth(fx.depth ?? 100);
           existing.setStages(fx.stages ?? 4);
-          // Effect state will be managed by effect chain rebuilding
+          existing.setMix(fx.mix ?? 50);
+          if (fx.notchDepth !== undefined) existing.setNotchDepth(fx.notchDepth);
+          if (fx.resonance !== undefined) existing.setResonance(fx.resonance);
+          existing.setFeedback(fx.feedback ?? 20);
+          if (fx.lfoShape) existing.setLfoShape(fx.lfoShape);
         }
       } else if (fx.kind === "pingpong") {
         const existing = pingpongHandles.get(fx.id);
         if (!existing) {
           const handle = createPingPongDelayNode(
             ctxLocal,
-            fx.delayTime,
-            fx.feedback,
-            fx.mix
+            fx.delayTime ?? 250,
+            fx.feedback ?? 30,
+            fx.mix ?? 30
           );
           pingpongHandles.set(fx.id, handle);
+          if (playing) {
+            handle.start();
+          }
         } else {
-          existing.setTime(fx.delayTime);
-          existing.setFeedback(fx.feedback);
-          existing.setMix(fx.mix);
+          existing.setTime(fx.delayTime ?? 250);
+          existing.setFeedback(fx.feedback ?? 30);
+          existing.setMix(fx.mix ?? 30);
         }
       } else if (fx.kind === "combfilter") {
         const existing = combfilterHandles.get(fx.id);
         if (!existing) {
-          // CombFilter uses frequency, not delayTime
           const handle = createCombFilterNode(
             ctxLocal,
-            fx.delayTime * 1000,
-            fx.resonance,
-            fx.mix
+            fx.frequency ?? 440,
+            fx.resonance ?? 50,
+            fx.mix ?? 50
           );
           combfilterHandles.set(fx.id, handle);
+          if (playing) {
+            handle.start();
+          }
         } else {
-          existing.setFrequency(fx.delayTime * 1000); // Convert delay time to frequency
-          existing.setResonance(fx.resonance);
-          existing.setMix(fx.mix);
+          existing.setFrequency(fx.frequency ?? 440);
+          existing.setResonance(fx.resonance ?? 50);
+          existing.setMix(fx.mix ?? 50);
         }
       } else if (fx.kind === "acidfilter") {
         const existing = acidfilterHandles.get(fx.id);
         if (!existing) {
           const handle = createAcidFilterNode(
             ctxLocal,
-            fx.cutoff,
-            fx.resonance,
-            fx.rate,
-            fx.envelope
+            fx.cutoff ?? 1000,
+            fx.resonance ?? 15,
+            fx.lfoRate ?? 0.5,
+            fx.lfoDepth ?? 500
           );
           acidfilterHandles.set(fx.id, handle);
           if (playing) {
             handle.start();
           }
         } else {
-          existing.setCutoff(fx.cutoff);
-          existing.setResonance(fx.resonance);
-          existing.setLfoRate(fx.rate);
-          existing.setLfoDepth(fx.envelope);
-          // Effect state will be managed by effect chain rebuilding
+          existing.setCutoff(fx.cutoff ?? 1000);
+          existing.setResonance(fx.resonance ?? 15);
+          existing.setLfoRate(fx.lfoRate ?? 0.5);
+          existing.setLfoDepth(fx.lfoDepth ?? 500);
         }
       } else if (fx.kind === "gate") {
         const existing = gateHandles.get(fx.id);
         if (!existing) {
           const handle = createGateEffectNode(
-            ctxLocal as any,
-            fx.rate,
-            fx.depth,
-            fx.attack,
-            fx.release
+            ctxLocal,
+            fx.rate ?? 4,
+            fx.threshold ?? 50,
+            fx.attack ?? 10,
+            fx.release ?? 100
           );
           gateHandles.set(fx.id, handle);
           if (playing) {
@@ -734,10 +748,9 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
           }
         } else {
           existing.setRate(fx.rate ?? 4);
-          existing.setThreshold(fx.depth ?? 50); // Gate uses threshold instead of depth
+          existing.setThreshold(fx.threshold ?? 50);
           existing.setAttack(fx.attack ?? 10);
           existing.setRelease(fx.release ?? 100);
-          // Effect state will be managed by effect chain rebuilding
         }
       } else if (fx.kind === "harmonicexciter") {
         const existing = harmonicexciterHandles.get(fx.id);

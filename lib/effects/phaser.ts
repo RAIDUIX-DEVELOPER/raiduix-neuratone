@@ -326,28 +326,36 @@ export function createPhaserNode(
     setLfoShape(newShape: "sine" | "triangle" | "sawtooth") {
       handle.lfoShape = newShape;
 
-      // If we have a wave shaper, update its curve
+      // Disconnect existing connections first
       if (shaperNode) {
-        const curve = createWaveShapeCurve(newShape);
-        (shaperNode as any).curve = curve;
-      } else if (newShape !== "sine") {
-        // Create new shaper if we need non-sine shapes
-        const newShaper = context.createWaveShaper();
-        (newShaper as any).curve = createWaveShapeCurve(newShape);
-
-        // Reconnect LFO through shaper
-        lfoOscillator.disconnect();
-        lfoOscillator.connect(newShaper);
-        newShaper.connect(lfoGain);
-
-        handle.shaperNode = newShaper;
+        lfoOscillator.disconnect(shaperNode);
+        shaperNode.disconnect(lfoGain);
       } else {
-        // Remove shaper for sine wave (direct connection)
-        if (handle.shaperNode) {
-          lfoOscillator.disconnect();
-          handle.shaperNode.disconnect();
-          lfoOscillator.connect(lfoGain);
+        lfoOscillator.disconnect(lfoGain);
+      }
+
+      if (newShape !== "sine") {
+        // Create or update wave shaper for non-sine shapes
+        if (!shaperNode) {
+          shaperNode = context.createWaveShaper();
+          handle.shaperNode = shaperNode;
+        }
+        
+        const curve = createWaveShapeCurve(newShape);
+        shaperNode.curve = curve;
+
+        // Connect through shaper
+        lfoOscillator.connect(shaperNode);
+        shaperNode.connect(lfoGain);
+      } else {
+        // Direct connection for sine wave
+        lfoOscillator.connect(lfoGain);
+        if (shaperNode) {
+          shaperNode = null;
           handle.shaperNode = null;
+        }
+      }
+    },
         }
       }
     },

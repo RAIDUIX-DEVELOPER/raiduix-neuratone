@@ -293,14 +293,8 @@ export function createFlangerNode(
       const rightDelayTime = 0.003 + (newWidth / 100) * 0.002;
       rightDelay.delayTime.setValueAtTime(rightDelayTime, context.currentTime);
 
-      // Update right LFO inversion amount based on stereo width
-      const rightLfoGain = context.createGain();
-      rightLfoGain.gain.value = -1 * (newWidth / 100);
-
-      // Reconnect with new width settings
-      lfoGain.disconnect(rightDelay.delayTime);
-      lfoGain.connect(rightLfoGain);
-      rightLfoGain.connect(rightDelay.delayTime);
+      // Update the existing right LFO gain value for stereo width
+      rightLfoGain.gain.setValueAtTime(-1 * (newWidth / 100), context.currentTime);
     },
 
     setEnvelopeAmount(newAmount: number) {

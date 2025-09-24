@@ -1,4 +1,4 @@
-import type { AudioContext } from "standardized-audio-context";
+// Removed incorrect import - using native Web Audio API AudioContext
 
 export interface HarmonicExciterNodeHandle {
   inputGain: any;
