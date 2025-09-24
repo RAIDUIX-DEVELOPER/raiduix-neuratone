@@ -409,6 +409,7 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
     for (const [id, h] of pingpongHandles.entries()) {
       if (!byId.has(id)) {
         try {
+          h.stop();
           h.dispose();
         } catch {}
         pingpongHandles.delete(id);
@@ -417,6 +418,7 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
     for (const [id, h] of combfilterHandles.entries()) {
       if (!byId.has(id)) {
         try {
+          h.stop();
           h.dispose();
         } catch {}
         combfilterHandles.delete(id);
@@ -443,6 +445,7 @@ export function createBinaural(layer: SoundLayer): EngineHandle {
     for (const [id, h] of harmonicexciterHandles.entries()) {
       if (!byId.has(id)) {
         try {
+          h.stop();
           h.dispose();
         } catch {}
         harmonicexciterHandles.delete(id);
