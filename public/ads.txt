@@ -1,0 +1,4 @@
+# ads.txt file for neuratone.com
+# This file indicates authorized digital sellers
+# Currently no advertising partners configured
+# Contact: https://github.com/RAIDUIX-DEVELOPER/raiduix-neuratone/issues
