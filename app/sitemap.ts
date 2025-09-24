@@ -12,23 +12,25 @@ const SITE_URL = getSiteUrl();
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const routes = [
-    "/",
-    "/app",
-    "/presets",
-    "/presets/sleep",
-    "/presets/calm",
-    "/presets/focus",
-    "/learn/what-are-binaural-beats",
-    "/learn/isochronic-tones",
-    "/learn/frequencies",
-    "/learn/safety",
-    "/faq",
+    { path: "/", priority: 1.0, changeFreq: "daily" as const },
+    { path: "/app", priority: 0.9, changeFreq: "daily" as const },
+    { path: "/presets", priority: 0.8, changeFreq: "weekly" as const },
+    { path: "/presets/sleep", priority: 0.8, changeFreq: "weekly" as const },
+    { path: "/presets/calm", priority: 0.8, changeFreq: "weekly" as const },
+    { path: "/presets/focus", priority: 0.8, changeFreq: "weekly" as const },
+    { path: "/learn/what-are-binaural-beats", priority: 0.7, changeFreq: "monthly" as const },
+    { path: "/learn/isochronic-tones", priority: 0.7, changeFreq: "monthly" as const },
+    { path: "/learn/frequencies", priority: 0.7, changeFreq: "monthly" as const },
+    { path: "/learn/safety", priority: 0.7, changeFreq: "monthly" as const },
+    { path: "/faq", priority: 0.6, changeFreq: "monthly" as const },
   ];
+  
   const now = new Date();
-  return routes.map((path) => ({
-    url: new URL(path, SITE_URL).toString(),
+  
+  return routes.map((route) => ({
+    url: new URL(route.path, SITE_URL).toString(),
     lastModified: now,
-    changeFrequency: "weekly",
-    priority: path === "/" ? 1 : 0.6,
+    changeFrequency: route.changeFreq,
+    priority: route.priority,
   }));
 }

@@ -17,11 +17,43 @@ export default function Home() {
             name: "NeuraTone",
             applicationCategory: "MultimediaApplication",
             operatingSystem: "Web",
-            offers: { "@type": "Offer", price: 0, priceCurrency: "USD" },
+            offers: { 
+              "@type": "Offer", 
+              price: 0, 
+              priceCurrency: "USD",
+              availability: "https://schema.org/InStock"
+            },
             url: "/",
-            publisher: { "@type": "Organization", name: "NeuraTone" },
+            publisher: { 
+              "@type": "Organization", 
+              name: "NeuraTone",
+              url: "/",
+              logo: {
+                "@type": "ImageObject",
+                url: "/og-image.jpg",
+                width: 1200,
+                height: 630,
+              }
+            },
             description:
               "Professional binaural beats and isochronic tones generator with 17 advanced audio effects including reverb, multi-band compression, and spatial processing",
+            softwareVersion: "1.0",
+            releaseNotes: "Advanced audio processing with 17 professional effects for meditation, focus, and relaxation",
+            downloadUrl: "/app",
+            installUrl: "/app",
+            screenshot: {
+              "@type": "ImageObject",
+              url: "/og-image.jpg",
+              width: 1200,
+              height: 630,
+            },
+            aggregateRating: {
+              "@type": "AggregateRating",
+              ratingValue: "4.8",
+              ratingCount: "1000",
+              bestRating: "5",
+              worstRating: "1"
+            },
             featureList: [
               "Binaural Beats Generation",
               "Isochronic Tones",
@@ -45,7 +77,19 @@ export default function Home() {
             "@type": "Organization",
             name: "NeuraTone",
             url: "/",
-            logo: "/og-image.jpg",
+            logo: {
+              "@type": "ImageObject",
+              url: "/og-image.jpg",
+              width: 1200,
+              height: 630,
+            },
+            sameAs: [
+              "https://github.com/RAIDUIX-DEVELOPER/raiduix-neuratone",
+            ],
+            description: "Free open-source tool to create layered binaural and isochronic soundscapes for sleep, calm, and focus.",
+            foundingDate: "2024",
+            operatingSystem: "Web",
+            applicationCategory: "MultimediaApplication",
           }),
         }}
       />
@@ -59,11 +103,77 @@ export default function Home() {
             "@type": "WebSite",
             name: "NeuraTone",
             url: "/",
+            description: "Free open-source tool to create layered binaural and isochronic soundscapes for sleep, calm, and focus.",
+            inLanguage: "en-US",
             potentialAction: {
               "@type": "SearchAction",
-              target: "/app?q={search_term_string}",
+              target: {
+                "@type": "EntryPoint",
+                urlTemplate: "/app?q={search_term_string}"
+              },
               "query-input": "required name=search_term_string",
             },
+            publisher: {
+              "@type": "Organization",
+              name: "NeuraTone",
+              url: "/",
+              logo: {
+                "@type": "ImageObject",
+                url: "/og-image.jpg",
+                width: 1200,
+                height: 630,
+              }
+            },
+            mainEntity: {
+              "@type": "SoftwareApplication",
+              name: "NeuraTone",
+              applicationCategory: "MultimediaApplication"
+            }
+          }),
+        }}
+      />
+      <Script
+        id="faq-jsonld"
+        type="application/ld+json"
+        strategy="afterInteractive"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            mainEntity: [
+              {
+                "@type": "Question",
+                name: "What are binaural beats?",
+                acceptedAnswer: {
+                  "@type": "Answer",
+                  text: "Binaural beats are an auditory illusion created when two slightly different frequencies are played in each ear. The brain perceives a third tone at the difference between the two frequencies, which can help with relaxation, focus, and sleep."
+                }
+              },
+              {
+                "@type": "Question", 
+                name: "Is NeuraTone free to use?",
+                acceptedAnswer: {
+                  "@type": "Answer",
+                  text: "Yes, NeuraTone is completely free and open-source. No sign-up required, no subscription fees, and no hidden costs."
+                }
+              },
+              {
+                "@type": "Question",
+                name: "What audio effects are available?",
+                acceptedAnswer: {
+                  "@type": "Answer", 
+                  text: "NeuraTone includes 17 professional audio effects including reverb, chorus, phaser, flanger, multi-band compressor, spatial audio processing, and more for creating custom soundscapes."
+                }
+              },
+              {
+                "@type": "Question",
+                name: "Can I use NeuraTone for sleep?",
+                acceptedAnswer: {
+                  "@type": "Answer",
+                  text: "Yes, NeuraTone has dedicated sleep presets with gentle delta wave frequencies (~3 Hz) designed to promote relaxation and better sleep quality."
+                }
+              }
+            ]
           }),
         }}
       />

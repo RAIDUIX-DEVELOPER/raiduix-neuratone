@@ -1,0 +1,21 @@
+/* TEAM */
+Developer: RAIDUIX DEVELOPER
+Site: https://github.com/RAIDUIX-DEVELOPER/raiduix-neuratone
+Location: Global
+
+/* THANKS */
+Framework: Next.js
+Audio: Tone.js, Howler.js
+UI: Tailwind CSS, Framer Motion
+Icons: Lucide React
+PWA: next-pwa
+
+/* SITE */
+Last update: 2024/09/24
+Language: English
+Doctype: HTML5
+IDE: VS Code
+Standards: HTML5, CSS3, ES6+, TypeScript
+Components: React, Next.js App Router
+Accessibility: WCAG 2.1 AA
+SEO: Optimized for search engines

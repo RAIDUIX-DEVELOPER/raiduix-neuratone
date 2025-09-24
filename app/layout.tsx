@@ -382,17 +382,21 @@ export const metadata: Metadata = {
     description:
       "Free open‑source tool to create layered binaural and isochronic soundscapes for sleep, calm, and focus. No sign‑up required.",
     siteName: "NeuraTone",
+    locale: "en_US",
     images: [
       {
         url: "/og-image.jpg",
         width: 1200,
         height: 630,
-        alt: "NeuraTone",
+        alt: "NeuraTone - Free Binaural Beats and Isochronic Tones Generator",
+        type: "image/jpeg",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
+    site: "@neuratone",
+    creator: "@neuratone",
     title:
       "NeuraTone: Free Binaural & Isochronic Soundscapes for Sleep, Calm, Focus",
     description:
@@ -400,14 +404,35 @@ export const metadata: Metadata = {
     images: [
       {
         url: "/og-image.jpg",
-        alt: "NeuraTone",
+        alt: "NeuraTone - Free Binaural Beats and Isochronic Tones Generator",
+        width: 1200,
+        height: 630,
       },
     ],
-    creator: "@neuratone",
-    site: "@neuratone",
   },
   icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "32x32", type: "image/x-icon" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
     other: [{ rel: "mask-icon", url: "/favicon.ico" }],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    nocache: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      noimageindex: false,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
   },
   verification: {
     google: "sxwVueaYMYESOpHLJg3aqdOZV6ZcK0Y73A1nJOt1GZA",
@@ -430,6 +455,20 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="manifest" href="/manifest.json" />
+        <link rel="canonical" href="/" />
+        <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+        <meta name="googlebot" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+        <meta name="bingbot" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+        <meta name="theme-color" content="#0A0F1C" />
+        <meta name="msapplication-TileColor" content="#0A0F1C" />
+        <meta name="application-name" content="NeuraTone" />
+        <meta name="apple-mobile-web-app-title" content="NeuraTone" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="format-detection" content="telephone=no" />
+        <meta name="msvalidate.01" content="B568D8FCC6B3E52FA9F170A74E8C3B1F" />
+        <meta name="google-site-verification" content="sxwVueaYMYESOpHLJg3aqdOZV6ZcK0Y73A1nJOt1GZA" />
         {/* Preconnects for performance */}
         <link
           rel="preconnect"
@@ -438,6 +477,10 @@ export default function RootLayout({
         />
         <link rel="preconnect" href="https://x.com" />
         <link rel="preconnect" href="https://github.com" />
+        <link rel="dns-prefetch" href="//fonts.googleapis.com" />
+        <link rel="dns-prefetch" href="//www.google-analytics.com" />
+        <link rel="dns-prefetch" href="//vercel.com" />
+        <link rel="preload" href="/og-image.jpg" as="image" type="image/jpeg" />
       </head>
       <body
         className={`${fontSans.variable} ${fontMono.variable} antialiased min-h-dvh`}
