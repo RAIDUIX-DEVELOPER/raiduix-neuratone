@@ -1433,7 +1433,7 @@ export default function Mixer() {
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={bgMedia.src}
-                  alt="Background"
+                  alt="Ambient background visual for audio mixing interface"
                   className="absolute inset-0 w-full h-full object-cover z-0"
                   style={{ filter: "brightness(0.6)", pointerEvents: "none" }}
                 />

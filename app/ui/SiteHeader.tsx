@@ -74,7 +74,7 @@ export default function SiteHeader() {
                 src="/128px-X_logo_2023_(white).png"
                 width={16}
                 height={16}
-                alt=""
+                alt="X (Twitter) social media platform logo"
                 className="h-4 w-4 object-contain"
                 priority={false}
               />

@@ -58,7 +58,7 @@ export default function HeroVisual({ className }: Props) {
     <img
       ref={imgRef}
       src="/window.svg"
-      alt="NeuraTone visual placeholder"
+      alt="NeuraTone application interface preview showing audio controls and visual effects"
       className={className}
       decoding="async"
     />

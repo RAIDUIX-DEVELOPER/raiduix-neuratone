@@ -400,7 +400,7 @@ export const metadata: Metadata = {
         url: "/og-image.jpg",
         width: 1200,
         height: 630,
-        alt: "NeuraTone",
+        alt: "NeuraTone - Free Binaural Beat and Isochronic Tone Generator for Sleep, Focus, and Calm",
       },
     ],
   },
@@ -413,7 +413,7 @@ export const metadata: Metadata = {
     images: [
       {
         url: "/og-image.jpg",
-        alt: "NeuraTone",
+        alt: "NeuraTone - Free Binaural Beat and Isochronic Tone Generator for Sleep, Focus, and Calm",
       },
     ],
     creator: "@neuratone",
@@ -470,6 +470,12 @@ export default function RootLayout({
         <meta name="application-name" content="NeuraTone" />
         <meta name="msapplication-TileColor" content="#0A0F1C" />
         <meta name="msapplication-config" content="/browserconfig.xml" />
+        <meta name="theme-color" content="#0A0F1C" />
+        <meta name="color-scheme" content="dark" />
+        
+        {/* Image optimization hints */}
+        <meta name="image-cache-control" content="max-age=31536000" />
+        <meta name="preload-critical-resources" content="true" />
         
         {/* PWA Manifest */}
         <link rel="manifest" href="/manifest.json" />
