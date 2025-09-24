@@ -63,7 +63,10 @@ export async function createNoiseNode(
 
   const setGain = (linear: number) => {
     const v = Math.max(0, Math.min(1, linear));
-    noise.parameters.get("gain")!.setValueAtTime(v, ctx.currentTime);
+    const gainParam = Array.from(noise.parameters.values())[0]; // Get the first (and only) parameter
+    if (gainParam) {
+      gainParam.setValueAtTime(v, ctx.currentTime);
+    }
   };
 
   const setPan = (pan: number) =>
@@ -130,10 +133,12 @@ export async function createNoiseNode(
     fadeTo: (linear: number, seconds: number) => {
       const v = Math.max(0, Math.min(1, linear));
       const t = Math.max(0.01, seconds || 0.01);
-      const param = noise.parameters.get("gain")!;
-      param.cancelScheduledValues(ctx.currentTime);
-      param.setValueAtTime(param.value as number, ctx.currentTime);
-      param.linearRampToValueAtTime(v, ctx.currentTime + t);
+      const param = Array.from(noise.parameters.values())[0]; // Get the first (and only) parameter
+      if (param) {
+        param.cancelScheduledValues(ctx.currentTime);
+        param.setValueAtTime(param.value as number, ctx.currentTime);
+        param.linearRampToValueAtTime(v, ctx.currentTime + t);
+      }
     },
     setPan,
     setLpf,

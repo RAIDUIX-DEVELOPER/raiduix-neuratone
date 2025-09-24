@@ -342,7 +342,7 @@ export function createPhaserNode(
         }
         
         const curve = createWaveShapeCurve(newShape);
-        shaperNode.curve = curve;
+        shaperNode.curve = new Float32Array(curve);
 
         // Connect through shaper
         lfoOscillator.connect(shaperNode);
@@ -353,9 +353,6 @@ export function createPhaserNode(
         if (shaperNode) {
           shaperNode = null;
           handle.shaperNode = null;
-        }
-      }
-    },
         }
       }
     },

@@ -126,6 +126,8 @@ export interface FlangerEffect {
   depth: number; // milliseconds - delay modulation depth
   feedback: number; // 0..100 - feedback percentage
   mix: number; // 0..100 - wet/dry mix percentage
+  stereoWidth?: number; // 0..100 - stereo width percentage
+  envelopeAmount?: number; // 0..100 - envelope following amount
 }
 
 export interface PhaserEffect {
@@ -135,6 +137,10 @@ export interface PhaserEffect {
   depth: number; // 0..100 - modulation depth percentage
   feedback: number; // 0..100 - feedback percentage
   stages: number; // number of all-pass filter stages
+  mix?: number; // 0..100 - wet/dry mix percentage
+  notchDepth?: number; // 0..100 - notch filter depth
+  resonance?: number; // 0..100 - filter resonance
+  lfoShape?: "sine" | "triangle" | "sawtooth"; // LFO waveform shape
 }
 
 export interface PingPongEffect {
@@ -148,7 +154,7 @@ export interface PingPongEffect {
 export interface CombFilterEffect {
   id: string;
   kind: "combfilter";
-  delayTime: number; // seconds - comb delay time
+  frequency: number; // Hz - comb filter frequency
   resonance: number; // 0..100 - resonance percentage
   mix: number; // 0..100 - wet/dry mix percentage
 }
@@ -158,15 +164,15 @@ export interface AcidFilterEffect {
   kind: "acidfilter";
   cutoff: number; // Hz - filter cutoff frequency
   resonance: number; // 0..100 - filter resonance percentage
-  envelope: number; // 0..100 - envelope amount percentage
-  rate: number; // Hz - LFO rate
+  lfoRate: number; // Hz - LFO rate
+  lfoDepth: number; // Hz - LFO modulation depth
 }
 
 export interface GateEffect {
   id: string;
   kind: "gate";
   rate: number; // Hz - gate rate
-  depth: number; // 0..100 - gate depth percentage
+  threshold: number; // 0..100 - gate threshold percentage
   attack: number; // seconds - gate attack time
   release: number; // seconds - gate release time
 }
