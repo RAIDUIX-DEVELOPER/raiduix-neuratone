@@ -14,7 +14,23 @@ const SITE_URL = getSiteUrl();
 
 export default function robots(): MetadataRoute.Robots {
   return {
-    rules: [{ userAgent: "*", allow: "/" }],
+    rules: [
+      {
+        userAgent: "*",
+        allow: "/",
+        disallow: ["/api/", "/private/", "/_next/", "/tmp/"],
+      },
+      {
+        userAgent: "Googlebot",
+        allow: "/",
+        disallow: ["/api/", "/private/"],
+      },
+      {
+        userAgent: "Bingbot",
+        allow: "/",
+        disallow: ["/api/", "/private/"],
+      }
+    ],
     sitemap: new URL("/sitemap.xml", SITE_URL).toString(),
     host: SITE_URL,
   };

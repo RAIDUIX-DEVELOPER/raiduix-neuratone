@@ -34,10 +34,23 @@ const SITE_URL = getSiteUrl();
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-  title:
-    "NeuraTone: Free Binaural & Isochronic Soundscapes for Sleep, Calm, Focus",
+  title: {
+    template: "%s | NeuraTone",
+    default: "NeuraTone: Free Binaural & Isochronic Soundscapes for Sleep, Calm, Focus",
+  },
   description:
     "Free open‑source tool to create layered binaural and isochronic soundscapes for sleep, calm, and focus. No sign‑up required.",
+  applicationName: "NeuraTone",
+  authors: [{ name: "NeuraTone Team" }],
+  generator: "Next.js",
+  referrer: "origin-when-cross-origin",
+  creator: "NeuraTone Team",
+  publisher: "NeuraTone",
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
   keywords: [
     "binaural beats",
     "isochronic tones",
@@ -407,7 +420,18 @@ export const metadata: Metadata = {
     site: "@neuratone",
   },
   icons: {
-    other: [{ rel: "mask-icon", url: "/favicon.ico" }],
+    icon: [
+      { url: "/favicon.ico", sizes: "32x32", type: "image/x-icon" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
+    other: [
+      { rel: "mask-icon", url: "/favicon.ico", color: "#0A0F1C" },
+      { rel: "shortcut icon", url: "/favicon.ico" },
+    ],
   },
   verification: {
     google: "sxwVueaYMYESOpHLJg3aqdOZV6ZcK0Y73A1nJOt1GZA",
@@ -419,6 +443,11 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: "#0A0F1C",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -429,15 +458,41 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        {/* Essential meta tags */}
+        <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+        <meta name="googlebot" content="index, follow, max-video-preview:-1, max-image-preview:large, max-snippet:-1" />
+        <meta name="bingbot" content="index, follow, max-video-preview:-1, max-image-preview:large, max-snippet:-1" />
+        <meta name="format-detection" content="telephone=no" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="NeuraTone" />
+        <meta name="application-name" content="NeuraTone" />
+        <meta name="msapplication-TileColor" content="#0A0F1C" />
+        <meta name="msapplication-config" content="/browserconfig.xml" />
+        
+        {/* PWA Manifest */}
         <link rel="manifest" href="/manifest.json" />
+        
+        {/* Preload critical resources */}
+        <link rel="preload" as="font" href="https://fonts.gstatic.com/s/inter/v13/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuLyfAZ9hiA.woff2" type="font/woff2" crossOrigin="anonymous" />
+        <link rel="preload" as="image" href="/og-image.jpg" type="image/jpeg" />
+        
         {/* Preconnects for performance */}
         <link
           rel="preconnect"
           href="https://fonts.gstatic.com"
           crossOrigin="anonymous"
         />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://x.com" />
         <link rel="preconnect" href="https://github.com" />
+        <link rel="preconnect" href="https://vercel.com" />
+        
+        {/* DNS prefetch for external domains */}
+        <link rel="dns-prefetch" href="//fonts.googleapis.com" />
+        <link rel="dns-prefetch" href="//fonts.gstatic.com" />
+        <link rel="dns-prefetch" href="//vercel.com" />
       </head>
       <body
         className={`${fontSans.variable} ${fontMono.variable} antialiased min-h-dvh`}

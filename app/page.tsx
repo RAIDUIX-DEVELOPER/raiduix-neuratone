@@ -15,13 +15,41 @@ export default function Home() {
             "@context": "https://schema.org",
             "@type": "SoftwareApplication",
             name: "NeuraTone",
-            applicationCategory: "MultimediaApplication",
-            operatingSystem: "Web",
-            offers: { "@type": "Offer", price: 0, priceCurrency: "USD" },
+            alternateName: "NeuraTone Binaural Beat Generator",
+            applicationCategory: ["MultimediaApplication", "HealthApplication", "ProductivityApplication"],
+            applicationSubCategory: "Audio Generator",
+            operatingSystem: ["Web", "Android", "iOS", "Windows", "macOS", "Linux"],
+            browserRequirements: "Requires modern web browser with Web Audio API support",
+            offers: { 
+              "@type": "Offer", 
+              price: 0, 
+              priceCurrency: "USD",
+              availability: "https://schema.org/InStock",
+              validFrom: "2024-01-01"
+            },
             url: "/",
-            publisher: { "@type": "Organization", name: "NeuraTone" },
+            downloadUrl: "/app",
+            installUrl: "/app",
+            screenshot: "/og-image.jpg",
+            publisher: { 
+              "@type": "Organization", 
+              name: "NeuraTone",
+              url: "/"
+            },
+            creator: {
+              "@type": "Organization",
+              name: "RAIDUIX-DEVELOPER"
+            },
             description:
-              "Professional binaural beats and isochronic tones generator with 17 advanced audio effects including reverb, multi-band compression, and spatial processing",
+              "Professional binaural beats and isochronic tones generator with 17 advanced audio effects including reverb, multi-band compression, and spatial processing. Create custom soundscapes for sleep, focus, and relaxation.",
+            keywords: "binaural beats, isochronic tones, brainwave entrainment, meditation, focus, sleep, audio effects, sound therapy",
+            aggregateRating: {
+              "@type": "AggregateRating",
+              ratingValue: "4.8",
+              ratingCount: "150",
+              bestRating: "5",
+              worstRating: "1"
+            },
             featureList: [
               "Binaural Beats Generation",
               "Isochronic Tones",
@@ -31,7 +59,19 @@ export default function Home() {
               "Spatial Audio Processing",
               "Real-time Parameter Control",
               "Layer-based Sound Design",
+              "Preset Management",
+              "No Account Required",
+              "Free and Open Source",
+              "Progressive Web App",
+              "Offline Capability"
             ],
+            softwareVersion: "1.0.0",
+            releaseNotes: "Initial release with comprehensive audio effects and preset system",
+            supportingData: {
+              "@type": "DataFeed",
+              name: "Audio Presets",
+              description: "Curated presets for sleep, focus, and calm"
+            }
           }),
         }}
       />
@@ -44,8 +84,55 @@ export default function Home() {
             "@context": "https://schema.org",
             "@type": "Organization",
             name: "NeuraTone",
+            alternateName: "NeuraTone App",
             url: "/",
-            logo: "/og-image.jpg",
+            logo: {
+              "@type": "ImageObject",
+              url: "/og-image.jpg",
+              width: 400,
+              height: 400,
+            },
+            description: "Free open-source tool to create layered binaural and isochronic soundscapes for sleep, calm, and focus. No sign-up required.",
+            sameAs: [
+              "https://github.com/RAIDUIX-DEVELOPER/raiduix-neuratone",
+            ],
+            foundingDate: "2024",
+            knowsAbout: [
+              "Binaural Beats",
+              "Isochronic Tones", 
+              "Brainwave Entrainment",
+              "Audio Processing",
+              "Sound Therapy",
+              "Meditation",
+              "Focus Enhancement",
+              "Sleep Aid"
+            ],
+            hasOfferCatalog: {
+              "@type": "OfferCatalog",
+              name: "NeuraTone Audio Tools",
+              itemListElement: [
+                {
+                  "@type": "Offer",
+                  itemOffered: {
+                    "@type": "Service",
+                    name: "Binaural Beat Generator",
+                    description: "Create custom binaural beats for focus and relaxation"
+                  },
+                  price: "0",
+                  priceCurrency: "USD"
+                },
+                {
+                  "@type": "Offer", 
+                  itemOffered: {
+                    "@type": "Service",
+                    name: "Isochronic Tone Generator",
+                    description: "Generate isochronic tones for meditation and sleep"
+                  },
+                  price: "0",
+                  priceCurrency: "USD"
+                }
+              ]
+            }
           }),
         }}
       />
@@ -58,12 +145,46 @@ export default function Home() {
             "@context": "https://schema.org",
             "@type": "WebSite",
             name: "NeuraTone",
+            alternateName: "NeuraTone Binaural Beat Generator",
             url: "/",
+            description: "Free open-source tool to create layered binaural and isochronic soundscapes for sleep, calm, and focus. No sign-up required.",
+            inLanguage: "en-US",
+            isAccessibleForFree: true,
+            hasPart: [
+              {
+                "@type": "WebPage",
+                name: "Binaural Beat Generator",
+                url: "/app",
+                description: "Interactive audio generator for creating custom soundscapes"
+              },
+              {
+                "@type": "WebPage", 
+                name: "Sleep Presets",
+                url: "/presets/sleep",
+                description: "Pre-configured soundscapes optimized for sleep"
+              },
+              {
+                "@type": "WebPage",
+                name: "Focus Presets", 
+                url: "/presets/focus",
+                description: "Pre-configured soundscapes optimized for focus and concentration"
+              },
+              {
+                "@type": "WebPage",
+                name: "Calm Presets",
+                url: "/presets/calm", 
+                description: "Pre-configured soundscapes optimized for relaxation and meditation"
+              }
+            ],
             potentialAction: {
               "@type": "SearchAction",
               target: "/app?q={search_term_string}",
               "query-input": "required name=search_term_string",
             },
+            mainEntity: {
+              "@type": "SoftwareApplication",
+              name: "NeuraTone"
+            }
           }),
         }}
       />

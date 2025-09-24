@@ -1,13 +1,51 @@
 {
-  "name": "NeuraToneᴿᴬᴵᴰᵁᴵˣ",
+  "name": "NeuraTone: Binaural & Isochronic Soundscapes",
   "short_name": "NeuraTone",
-  "description": "Layer Your Mind With Sound.",
+  "description": "Free open-source tool to create layered binaural and isochronic soundscapes for sleep, calm, and focus. No sign-up required.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#F8F9FB",
+  "orientation": "portrait-primary",
+  "background_color": "#0A0F1C",
   "theme_color": "#0A0F1C",
+  "categories": ["health", "productivity", "wellness", "music"],
+  "lang": "en",
+  "dir": "ltr",
   "icons": [
-    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+    { 
+      "src": "/icon-192.png", 
+      "sizes": "192x192", 
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    { 
+      "src": "/icon-512.png", 
+      "sizes": "512x512", 
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Sleep Preset",
+      "short_name": "Sleep",
+      "description": "Quickly access sleep soundscapes",
+      "url": "/presets/sleep",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Focus Preset", 
+      "short_name": "Focus",
+      "description": "Quickly access focus soundscapes",
+      "url": "/presets/focus",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Calm Preset",
+      "short_name": "Calm", 
+      "description": "Quickly access calm soundscapes",
+      "url": "/presets/calm",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
   ]
 }
