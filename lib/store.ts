@@ -1,11 +1,8 @@
 "use client";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import {
-  SoundLayer,
-  type LayerEffect,
-  type LayerEffectKind,
-} from "./audioEngine";
+import { normalizeLayerPatch, withDefaults } from "./validation";
+import type { SoundLayer, LayerEffect } from "@/lib/audio/types";
 
 export interface Preset {
   id: string;
@@ -251,10 +248,11 @@ export const useAppStore = create<AppState>()(
           } else if (type === "ambient") {
             base.ambientKey = l.ambientKey ?? "rain";
           }
-          return {
-            ...state,
-            layers: [...state.layers, base],
-          };
+          const normalized = withDefaults({
+            ...base,
+            ...normalizeLayerPatch(base),
+          });
+          return { ...state, layers: [...state.layers, normalized] };
         }),
       removeLayer: (id) =>
         set((state) => ({
@@ -264,9 +262,11 @@ export const useAppStore = create<AppState>()(
       updateLayer: (id, patch) =>
         set((state) => ({
           ...state,
-          layers: state.layers.map((l) =>
-            l.id === id ? { ...l, ...patch } : l
-          ),
+          layers: state.layers.map((l) => {
+            if (l.id !== id) return l;
+            const normalized = normalizeLayerPatch(patch as any);
+            return withDefaults({ ...l, ...patch, ...normalized });
+          }),
         })),
       addLayerEffect: (id, effect) =>
         set((state) => ({
@@ -282,7 +282,9 @@ export const useAppStore = create<AppState>()(
             l.id === id
               ? {
                   ...l,
-                  effects: (l.effects || []).filter((e) => e.id !== effectId),
+                  effects: (l.effects || []).filter(
+                    (e: LayerEffect) => e.id !== effectId
+                  ),
                 }
               : l
           ),

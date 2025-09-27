@@ -9,6 +9,7 @@ import AnalyticsEvents from "./ui/AnalyticsEvents";
 import SiteHeader from "./ui/SiteHeader";
 import ScrollToTopButton from "./ui/ScrollToTopButton";
 import DisableContextMenu from "./ui/DisableContextMenu";
+import React from "react";
 
 const fontSans = Inter({
   variable: "--font-sans",
@@ -38,6 +39,7 @@ export const metadata: Metadata = {
     "NeuraTone: Free Binaural & Isochronic Soundscapes for Sleep, Calm, Focus",
   description:
     "Free open‑source tool to create layered binaural and isochronic soundscapes for sleep, calm, and focus. No sign‑up required.",
+  // NOTE: Keyword list intentionally pruned – removed unrelated / low-relevance phrases
   keywords: [
     "binaural beats",
     "isochronic tones",
@@ -164,19 +166,7 @@ export const metadata: Metadata = {
     "simple meditation techniques",
     "how to meditate at home effectively",
     "mindfulness meditation",
-    "benefits of daily meditation",
-    "just for today meditation",
-    "vipassana meditation",
-    "benefits of",
-    "meditation music youtube",
-    "mindfulness meditation exercises for anxiety",
-    "mindfulness meditation techniques for anxiety",
-    "mindfulness meditation for stress relief",
-    "mindfulness meditation for stress relief and anxiety",
-    "mindfulness meditation exercises",
-    "mindfulness meditation for beginners",
-    "mindfulness meditation for beginners youtube",
-    "mindfulness meditation techniques for anxiety and stress",
+    // trimmed repetitive long-tail mindfulness / meditation variants
     "transcendental meditation",
     "meditate",
     "how to meditate",
@@ -333,16 +323,15 @@ export const metadata: Metadata = {
     "frequency polygon",
     "cumulative frequency",
     "frequency formula",
-    "electric love",
-    "high frequency words",
+    // Removed: "electric love", "adjust email sync frequency settings windows" (irrelevant)
     "relative frequency",
     "radio frequency",
     "frequency generator",
     "frequency table",
     "adverbs of frequency",
     "frequently",
-    "adjust email sync frequency settings windows",
     // Meditation app-related keywords (requested)
+
     "best apps for meditation",
     "meditation apps free",
     "calm meditation",
@@ -356,9 +345,7 @@ export const metadata: Metadata = {
     "mindfulness app",
     "best meditation apps",
     "meditation apps",
-    "calm company",
-    "calm.com",
-    "calming",
+    // removed redundant Calm brand variants (keep single 'calm')
     "headspace app",
     "best free mindfulness apps",
     "best meditation apps free",
@@ -442,6 +429,13 @@ export default function RootLayout({
       <body
         className={`${fontSans.variable} ${fontMono.variable} antialiased min-h-dvh`}
       >
+        {/* Skip link for keyboard users */}
+        <a
+          href="#main-content"
+          className="skip-link sr-only focus:not-sr-only focus:fixed focus:z-50 focus:top-2 focus:left-2 focus:bg-teal-600 focus:text-white focus:px-4 focus:py-2 focus:rounded-md"
+        >
+          Skip to main content
+        </a>
         {/* Breadcrumbs JSON-LD (dynamic) */}
         <BreadcrumbsJsonLd />
         <SpotlightProvider />
@@ -450,8 +444,12 @@ export default function RootLayout({
         <AnalyticsEvents />
         {/* Disable right-click context menu globally */}
         <DisableContextMenu />
-        <SiteHeader />
-        {children}
+        <header role="banner">
+          <SiteHeader />
+        </header>
+        <main id="main-content" role="main">
+          {children}
+        </main>
         <ScrollToTopButton />
         <Analytics />
       </body>

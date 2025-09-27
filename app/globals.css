@@ -29,6 +29,24 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Skip link utility */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  padding: 8px 12px;
+  background: #0d9488;
+  color: #fff;
+  border-radius: 6px;
+  font-weight: 600;
+  transition: top 0.2s ease;
+}
+.skip-link:focus {
+  top: 8px;
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+}
+
 /* Smooth scrolling for anchor jumps and back-to-top; disabled for reduced motion */
 html {
   scroll-behavior: smooth;

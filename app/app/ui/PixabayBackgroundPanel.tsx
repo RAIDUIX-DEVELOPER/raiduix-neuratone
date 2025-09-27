@@ -1,5 +1,6 @@
 "use client";
 import React from "react";
+import log from "@/lib/logger";
 
 type Kind = "images" | "videos";
 export type SelectPayload =
@@ -60,7 +61,7 @@ export default function PixabayBackgroundPanel({
       const data = await r.json();
       setHits(Array.isArray(data?.hits) ? data.hits : []);
     } catch (e) {
-      console.error("Pixabay search failed", e);
+      log.error("Pixabay search failed", e);
       setHits([]);
     } finally {
       setLoading(false);

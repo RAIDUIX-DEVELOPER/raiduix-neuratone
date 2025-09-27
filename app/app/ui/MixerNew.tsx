@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import log from "@/lib/logger";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import {
@@ -28,7 +29,8 @@ import {
   Check,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
-import { SoundLayer, createEngine, type LayerEffect } from "@/lib/audioEngine";
+import { createEngine } from "@/lib/audioEngine";
+import type { SoundLayer, LayerEffect } from "@/lib/audio/types";
 import OrbVisualizer from "./OrbVisualizer";
 import PixabayBackgroundPanel, {
   type SelectPayload as PixabaySelect,
@@ -330,7 +332,7 @@ export default function Mixer() {
         await document.exitFullscreen();
       }
     } catch (e) {
-      console.warn("Fullscreen toggle failed", e);
+      log.warn("Fullscreen toggle failed", e);
     }
   }
 
@@ -394,7 +396,7 @@ export default function Mixer() {
         }
       }
     } catch (e) {
-      console.warn("Randomize background failed", e);
+      log.warn("Randomize background failed", e);
     }
   }
 
@@ -2115,9 +2117,11 @@ export default function Mixer() {
                                   <div className="text-white/80 font-semibold whitespace-nowrap tabular-nums text-xs">
                                     {layer.pan === 0
                                       ? "CENTER"
-                                      : layer.pan > 0
-                                      ? "R " + Math.abs(layer.pan).toFixed(2)
-                                      : "L " + Math.abs(layer.pan).toFixed(2)}
+                                      : (layer.pan ?? 0) > 0
+                                      ? "R " +
+                                        Math.abs(layer.pan ?? 0).toFixed(2)
+                                      : "L " +
+                                        Math.abs(layer.pan ?? 0).toFixed(2)}
                                   </div>
                                 </div>
                                 <input
@@ -2306,14 +2310,16 @@ export default function Mixer() {
                                         <button
                                           type="button"
                                           onClick={() => {
-                                            console.log(
+                                            log.debug(
                                               `Removing effect ${fx.id} from layer ${layer.id}`
                                             );
 
                                             // Filter effects locally for immediate engine update
                                             const filteredEffects = (
                                               layer.effects || []
-                                            ).filter((e) => e.id !== fx.id);
+                                            ).filter(
+                                              (e: LayerEffect) => e.id !== fx.id
+                                            );
 
                                             // Update audio engine immediately with filtered effects
                                             const currentEngine =
