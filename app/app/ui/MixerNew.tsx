@@ -76,6 +76,14 @@ import {
   createHarmonicExciterNode,
   type HarmonicExciterNodeHandle,
 } from "@/lib/effects/harmonicexciter";
+import {
+  createAdvancedReverbNode,
+  type AdvancedReverbNodeHandle,
+} from "@/lib/effects/reverb";
+import {
+  createMultiBandCompressorNode,
+  type MultiBandCompressorNodeHandle,
+} from "@/lib/effects/multibandcompressor";
 
 interface EngineRef {
   [id: string]: ReturnType<typeof createEngine>;
@@ -150,6 +158,7 @@ export default function Mixer() {
   const [ringModIntensity, setRingModIntensity] = useState<number>(0.5);
   const ringModCtxRef = useRef<AudioContext | null>(null);
   const ringModHandleRef = useRef<RingModNodeHandle | null>(null);
+  const ringModOscRef = useRef<OscillatorNode | null>(null);
   // Tremolo effect state
   const [tremoloRate, setTremoloRate] = useState<number>(4);
   const [tremoloDepth, setTremoloDepth] = useState<number>(0.5);
@@ -210,6 +219,25 @@ export default function Mixer() {
   const [harmonicMix, setHarmonicMix] = useState<number>(50);
   const harmonicCtxRef = useRef<AudioContext | null>(null);
   const harmonicHandleRef = useRef<HarmonicExciterNodeHandle | null>(null);
+  // Reverb effect state
+  const [reverbRoomSize, setReverbRoomSize] = useState<number>(50);
+  const [reverbDamping, setReverbDamping] = useState<number>(30);
+  const [reverbDiffusion, setReverbDiffusion] = useState<number>(70);
+  const [reverbDensity, setReverbDensity] = useState<number>(80);
+  const [reverbPredelay, setReverbPredelay] = useState<number>(20);
+  const [reverbWidth, setReverbWidth] = useState<number>(100);
+  const [reverbMix, setReverbMix] = useState<number>(25);
+  const [reverbModulation, setReverbModulation] = useState<number>(15);
+  const reverbCtxRef = useRef<AudioContext | null>(null);
+  const reverbHandleRef = useRef<AdvancedReverbNodeHandle | null>(null);
+  const reverbOscRef = useRef<OscillatorNode | null>(null);
+  // Multiband Compressor effect state
+  const [mbCrossoverLow, setMbCrossoverLow] = useState<number>(200);
+  const [mbCrossoverHigh, setMbCrossoverHigh] = useState<number>(2000);
+  const [mbMix, setMbMix] = useState<number>(100);
+  const multibandCtxRef = useRef<AudioContext | null>(null);
+  const multibandHandleRef = useRef<MultiBandCompressorNodeHandle | null>(null);
+  const multibandOscRef = useRef<OscillatorNode | null>(null);
   // ...removed Pixabay audio search state (deprecated)
   const [saveAsName, setSaveAsName] = useState("");
   const [loadedPresetId, setLoadedPresetId] = useState<string | null>(null);
@@ -590,8 +618,19 @@ export default function Mixer() {
         frequency: ringModFrequency,
         intensity: ringModIntensity,
       });
-      handle.connect(ctx.destination);
+      // Create a simple test oscillator so the ring mod effect has input
+      const osc = ctx.createOscillator();
+      osc.frequency.value = 440;
+      osc.type = "sine";
+
+      // Route: osc -> ringmod -> speakers
+      osc.connect(handle.inputGain);
+      handle.outputGain.connect(ctx.destination);
+
+      osc.start();
       handle.start();
+
+      ringModOscRef.current = osc;
       ringModHandleRef.current = handle;
     } else {
       ringModHandleRef.current.setFrequency(ringModFrequency);
@@ -600,6 +639,13 @@ export default function Mixer() {
   }
   function stopRingModPreview() {
     const h = ringModHandleRef.current;
+    const osc = ringModOscRef.current;
+    try {
+      osc?.stop();
+    } catch {}
+    try {
+      osc?.disconnect();
+    } catch {}
     try {
       h?.disconnect();
     } catch {}
@@ -607,6 +653,7 @@ export default function Mixer() {
       h?.dispose();
     } catch {}
     ringModHandleRef.current = null;
+    ringModOscRef.current = null;
   }
 
   // Tremolo effect preview lifecycle
@@ -1053,6 +1100,131 @@ export default function Mixer() {
     harmonicHandleRef.current = null;
   }
 
+  // Reverb effect preview lifecycle
+  async function ensureReverbPreviewStarted() {
+    if (!reverbCtxRef.current) {
+      const Ctor = (window.AudioContext ||
+        (window as any).webkitAudioContext) as typeof AudioContext;
+      reverbCtxRef.current = new Ctor();
+    }
+    const ctx = reverbCtxRef.current!;
+    try {
+      await ctx.resume();
+    } catch {}
+    if (!reverbHandleRef.current) {
+      const handle = createAdvancedReverbNode(
+        ctx,
+        reverbRoomSize,
+        reverbDamping,
+        reverbDiffusion,
+        reverbDensity,
+        reverbPredelay,
+        reverbWidth,
+        reverbMix,
+        reverbModulation
+      );
+      // Inject a test oscillator so we can hear the reverb
+      const osc = ctx.createOscillator();
+      osc.type = "sine";
+      osc.frequency.value = 440;
+      osc.connect(handle.inputGain);
+      handle.outputGain.connect(ctx.destination);
+      osc.start();
+      handle.start();
+      reverbOscRef.current = osc;
+      reverbHandleRef.current = handle;
+    } else {
+      reverbHandleRef.current.setRoomSize(reverbRoomSize);
+      reverbHandleRef.current.setDamping(reverbDamping);
+      reverbHandleRef.current.setDiffusion(reverbDiffusion);
+      reverbHandleRef.current.setDensity(reverbDensity);
+      reverbHandleRef.current.setPredelay(reverbPredelay);
+      reverbHandleRef.current.setWidth(reverbWidth);
+      reverbHandleRef.current.setMix(reverbMix);
+      reverbHandleRef.current.setModulation(reverbModulation);
+    }
+  }
+  function stopReverbPreview() {
+    const h = reverbHandleRef.current;
+    const osc = reverbOscRef.current;
+    try {
+      osc?.stop();
+    } catch {}
+    try {
+      osc?.disconnect();
+    } catch {}
+    try {
+      h?.stop();
+    } catch {}
+    try {
+      h?.dispose?.();
+    } catch {}
+    reverbHandleRef.current = null;
+    reverbOscRef.current = null;
+  }
+
+  // Multiband Compressor effect preview lifecycle
+  async function ensureMultibandPreviewStarted() {
+    if (!multibandCtxRef.current) {
+      const Ctor = (window.AudioContext ||
+        (window as any).webkitAudioContext) as typeof AudioContext;
+      multibandCtxRef.current = new Ctor();
+    }
+    const ctx = multibandCtxRef.current!;
+    try {
+      await ctx.resume();
+    } catch {}
+    if (!multibandHandleRef.current) {
+      const handle = createMultiBandCompressorNode(
+        ctx as unknown as any,
+        mbCrossoverLow,
+        mbCrossoverHigh,
+        -12,
+        -10,
+        -8,
+        4,
+        3,
+        2,
+        mbMix
+      );
+      // Inject a harmonically rich oscillator to hear compression
+      const osc = ctx.createOscillator();
+      osc.type = "sawtooth";
+      osc.frequency.value = 220;
+      // Simple input gain to manage preview loudness
+      const inGain = ctx.createGain();
+      inGain.gain.value = 0.2;
+      osc.connect(inGain);
+      inGain.connect(handle.inputGain as any);
+      handle.outputGain.connect(ctx.destination as any);
+      osc.start();
+      multibandOscRef.current = osc;
+      multibandHandleRef.current = handle;
+    } else {
+      multibandHandleRef.current.setCrossoverLow(mbCrossoverLow);
+      multibandHandleRef.current.setCrossoverHigh(mbCrossoverHigh);
+      multibandHandleRef.current.setMix(mbMix);
+    }
+  }
+  function stopMultibandPreview() {
+    const h = multibandHandleRef.current;
+    const osc = multibandOscRef.current;
+    try {
+      osc?.stop();
+    } catch {}
+    try {
+      osc?.disconnect();
+    } catch {}
+    try {
+      h?.disconnect();
+    } catch {}
+    try {
+      h?.dispose();
+    } catch {}
+    multibandHandleRef.current = null;
+    multibandOscRef.current = null;
+  }
+
   // Cleanup on close/unmount
   useEffect(() => {
     if (!showEffectsLibrary) {
@@ -1068,6 +1240,8 @@ export default function Mixer() {
       stopAcidFilterPreview();
       stopGatePreview();
       stopHarmonicExciterPreview();
+      stopReverbPreview();
+      stopMultibandPreview();
     }
     return () => {
       stopNoisePreview();
@@ -1082,6 +1256,8 @@ export default function Mixer() {
       stopAcidFilterPreview();
       stopGatePreview();
       stopHarmonicExciterPreview();
+      stopReverbPreview();
+      stopMultibandPreview();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showEffectsLibrary]);
@@ -1112,6 +1288,11 @@ export default function Mixer() {
           sleep: "preset-sleep",
           calm: "preset-calm",
           focus: "preset-focus",
+          "solfeggio-528": "preset-solfeggio-528",
+          "solfeggio-396": "preset-solfeggio-396",
+          "solfeggio-639": "preset-solfeggio-639",
+          "solfeggio-741": "preset-solfeggio-741",
+          "solfeggio-852": "preset-solfeggio-852",
         };
         const fallbackId = keyToId[key];
         if (fallbackId) {
@@ -1128,8 +1309,9 @@ export default function Mixer() {
             setLoadedPresetId(seeded.id);
             setPresetName(seeded.name);
             didAutoloadRef.current = true;
+            // Preserve the human-friendly key in the URL so it reflects the active preset
             try {
-              router.replace("/app");
+              router.replace(`/app?preset=${encodeURIComponent(decoded)}`);
             } catch {}
             return; // early exit after seeding + load
           }
@@ -1152,9 +1334,12 @@ export default function Mixer() {
       setLoadedPresetId(target.id);
       setPresetName(target.name);
       didAutoloadRef.current = true;
-      // Clean the query string to avoid repeated autoloads and keep /app tidy
+      // Keep the URL in sync with the active preset. Preserve incoming preset param when present;
+      // otherwise, set it to the target id (e.g., when using continue=1)
       try {
-        router.replace("/app");
+        const param = searchParams.get("preset");
+        const value = param ? decodeURIComponent(param) : target.id;
+        router.replace(`/app?preset=${encodeURIComponent(value)}`);
       } catch {}
     }
   }, [searchParams, router, loadPreset]);
@@ -1323,6 +1508,13 @@ export default function Mixer() {
                     lastLoadedSnapshot.current = JSON.stringify(
                       layerSnapshot()
                     );
+                    // Reflect the created preset in the URL
+                    try {
+                      didAutoloadRef.current = true;
+                      router.replace(
+                        `/app?preset=${encodeURIComponent(created.id)}`
+                      );
+                    } catch {}
                   }
                 }}
                 className="px-2.5 py-1.5 btn-shape font-medium text-[11px] bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:bg-amber-500/25 disabled:opacity-40 inline-flex items-center gap-1"
@@ -2809,6 +3001,13 @@ export default function Mixer() {
                               setLoadedPresetId(p.id);
                               setPresetName(p.name);
                               setShowPresetsModal(false);
+                              // Reflect the selected preset in the URL
+                              try {
+                                didAutoloadRef.current = true;
+                                router.replace(
+                                  `/app?preset=${encodeURIComponent(p.id)}`
+                                );
+                              } catch {}
                             }}
                           >
                             Load
@@ -4845,6 +5044,410 @@ export default function Mixer() {
                   </div>
                 </div>
 
+                {/* Reverb Effect Card */}
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <div className="text-sm text-white font-medium">
+                        Reverb
+                      </div>
+                      <div className="text-[11px] text-white/60">
+                        Room simulation with diffusion and modulation
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <div className="flex justify-between text-[11px] text-white/60">
+                          <span>Room Size</span>
+                          <span className="text-white/80 font-medium">
+                            {Math.round(reverbRoomSize)}%
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={100}
+                          step={1}
+                          value={reverbRoomSize}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            setReverbRoomSize(v);
+                            reverbHandleRef.current?.setRoomSize(v);
+                          }}
+                          className="w-full appearance-none cursor-pointer"
+                        />
+                      </div>
+                      <div>
+                        <div className="flex justify-between text-[11px] text-white/60">
+                          <span>Damping</span>
+                          <span className="text-white/80 font-medium">
+                            {Math.round(reverbDamping)}%
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={100}
+                          step={1}
+                          value={reverbDamping}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            setReverbDamping(v);
+                            reverbHandleRef.current?.setDamping(v);
+                          }}
+                          className="w-full appearance-none cursor-pointer"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <div className="flex justify-between text-[11px] text-white/60">
+                          <span>Diffusion</span>
+                          <span className="text-white/80 font-medium">
+                            {Math.round(reverbDiffusion)}%
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={100}
+                          step={1}
+                          value={reverbDiffusion}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            setReverbDiffusion(v);
+                            reverbHandleRef.current?.setDiffusion(v);
+                          }}
+                          className="w-full appearance-none cursor-pointer"
+                        />
+                      </div>
+                      <div>
+                        <div className="flex justify-between text-[11px] text-white/60">
+                          <span>Density</span>
+                          <span className="text-white/80 font-medium">
+                            {Math.round(reverbDensity)}%
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={100}
+                          step={1}
+                          value={reverbDensity}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            setReverbDensity(v);
+                            reverbHandleRef.current?.setDensity(v);
+                          }}
+                          className="w-full appearance-none cursor-pointer"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <div className="flex justify-between text-[11px] text-white/60">
+                          <span>Pre-delay</span>
+                          <span className="text-white/80 font-medium">
+                            {Math.round(reverbPredelay)} ms
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={500}
+                          step={1}
+                          value={reverbPredelay}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            setReverbPredelay(v);
+                            reverbHandleRef.current?.setPredelay(v);
+                          }}
+                          className="w-full appearance-none cursor-pointer"
+                        />
+                      </div>
+                      <div>
+                        <div className="flex justify-between text-[11px] text-white/60">
+                          <span>Width</span>
+                          <span className="text-white/80 font-medium">
+                            {Math.round(reverbWidth)}%
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={100}
+                          step={1}
+                          value={reverbWidth}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            setReverbWidth(v);
+                            reverbHandleRef.current?.setWidth(v);
+                          }}
+                          className="w-full appearance-none cursor-pointer"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <div className="flex justify-between text-[11px] text-white/60">
+                          <span>Mix</span>
+                          <span className="text-white/80 font-medium">
+                            {Math.round(reverbMix)}%
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={100}
+                          step={1}
+                          value={reverbMix}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            setReverbMix(v);
+                            reverbHandleRef.current?.setMix(v);
+                          }}
+                          className="w-full appearance-none cursor-pointer"
+                        />
+                      </div>
+                      <div>
+                        <div className="flex justify-between text-[11px] text-white/60">
+                          <span>Modulation</span>
+                          <span className="text-white/80 font-medium">
+                            {Math.round(reverbModulation)}%
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={100}
+                          step={1}
+                          value={reverbModulation}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            setReverbModulation(v);
+                            reverbHandleRef.current?.setModulation(v);
+                          }}
+                          className="w-full appearance-none cursor-pointer"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-1">
+                      <button
+                        onClick={() => {
+                          if (reverbHandleRef.current) {
+                            stopReverbPreview();
+                          } else {
+                            ensureReverbPreviewStarted();
+                          }
+                        }}
+                        className={`inline-flex items-center gap-2 px-3 py-1.5 btn-shape text-white text-xs font-medium transition-colors ${
+                          reverbHandleRef.current
+                            ? "bg-white/10 hover:bg-white/20"
+                            : "bg-teal-500/80 hover:bg-teal-500"
+                        }`}
+                      >
+                        {reverbHandleRef.current ? (
+                          <>
+                            <Square size={16} /> Stop
+                          </>
+                        ) : (
+                          <>
+                            <Play size={16} /> Preview
+                          </>
+                        )}
+                      </button>
+                      <button
+                        disabled={!targetLayerId}
+                        onClick={() => {
+                          if (!targetLayerId) return;
+                          const currentLayer = layers.find(
+                            (l) => l.id === targetLayerId
+                          );
+                          if (
+                            currentLayer?.effects &&
+                            currentLayer.effects.length >= 4
+                          ) {
+                            alert("Maximum of 4 effects allowed per layer");
+                            return;
+                          }
+                          const effect = {
+                            id: crypto.randomUUID(),
+                            kind: "reverb" as const,
+                            roomSize: reverbRoomSize,
+                            damping: reverbDamping,
+                            diffusion: reverbDiffusion,
+                            density: reverbDensity,
+                            predelay: reverbPredelay,
+                            width: reverbWidth,
+                            mix: reverbMix,
+                            modulation: reverbModulation,
+                          };
+                          addLayerEffect(targetLayerId, effect);
+                          const layerForUpdate = useAppStore
+                            .getState()
+                            .layers.find((l) => l.id === targetLayerId);
+                          const existingEffects = layerForUpdate?.effects || [];
+                          const updatedEffects = [...existingEffects, effect];
+                          engines.current[targetLayerId]?.update({
+                            effects: updatedEffects as any,
+                          });
+                        }}
+                        className="inline-flex items-center gap-2 px-3 py-1.5 btn-shape bg-amber-500/80 hover:bg-amber-500 text-white text-xs font-medium transition-colors disabled:opacity-40"
+                      >
+                        <Plus size={16} /> Add to Layer
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Multiband Compressor Effect Card */}
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <div className="text-sm text-white font-medium">
+                        Multiband Compressor
+                      </div>
+                      <div className="text-[11px] text-white/60">
+                        Three-band dynamic control with crossovers
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <div className="flex justify-between text-[11px] text-white/60">
+                          <span>Low Crossover</span>
+                          <span className="text-white/80 font-medium">
+                            {Math.round(mbCrossoverLow)} Hz
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={50}
+                          max={1000}
+                          step={1}
+                          value={mbCrossoverLow}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            setMbCrossoverLow(v);
+                            multibandHandleRef.current?.setCrossoverLow(v);
+                          }}
+                          className="w-full appearance-none cursor-pointer"
+                        />
+                      </div>
+                      <div>
+                        <div className="flex justify-between text-[11px] text-white/60">
+                          <span>High Crossover</span>
+                          <span className="text-white/80 font-medium">
+                            {Math.round(mbCrossoverHigh)} Hz
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={1000}
+                          max={10000}
+                          step={10}
+                          value={mbCrossoverHigh}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            setMbCrossoverHigh(v);
+                            multibandHandleRef.current?.setCrossoverHigh(v);
+                          }}
+                          className="w-full appearance-none cursor-pointer"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 gap-3">
+                      <div>
+                        <div className="flex justify-between text-[11px] text-white/60">
+                          <span>Mix</span>
+                          <span className="text-white/80 font-medium">
+                            {Math.round(mbMix)}%
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={100}
+                          step={1}
+                          value={mbMix}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            setMbMix(v);
+                            multibandHandleRef.current?.setMix(v);
+                          }}
+                          className="w-full appearance-none cursor-pointer"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-1">
+                      <button
+                        onClick={() => {
+                          if (multibandHandleRef.current) {
+                            stopMultibandPreview();
+                          } else {
+                            ensureMultibandPreviewStarted();
+                          }
+                        }}
+                        className={`inline-flex items-center gap-2 px-3 py-1.5 btn-shape text-white text-xs font-medium transition-colors ${
+                          multibandHandleRef.current
+                            ? "bg-white/10 hover:bg-white/20"
+                            : "bg-teal-500/80 hover:bg-teal-500"
+                        }`}
+                      >
+                        {multibandHandleRef.current ? (
+                          <>
+                            <Square size={16} /> Stop
+                          </>
+                        ) : (
+                          <>
+                            <Play size={16} /> Preview
+                          </>
+                        )}
+                      </button>
+                      <button
+                        disabled={!targetLayerId}
+                        onClick={() => {
+                          if (!targetLayerId) return;
+                          const currentLayer = layers.find(
+                            (l) => l.id === targetLayerId
+                          );
+                          if (
+                            currentLayer?.effects &&
+                            currentLayer.effects.length >= 4
+                          ) {
+                            alert("Maximum of 4 effects allowed per layer");
+                            return;
+                          }
+                          const effect = {
+                            id: crypto.randomUUID(),
+                            kind: "multibandcompressor" as const,
+                            crossoverLow: mbCrossoverLow,
+                            crossoverHigh: mbCrossoverHigh,
+                            mix: mbMix,
+                          };
+                          addLayerEffect(targetLayerId, effect);
+                          const layerForUpdate = useAppStore
+                            .getState()
+                            .layers.find((l) => l.id === targetLayerId);
+                          const existingEffects = layerForUpdate?.effects || [];
+                          const updatedEffects = [...existingEffects, effect];
+                          engines.current[targetLayerId]?.update({
+                            effects: updatedEffects as any,
+                          });
+                        }}
+                        className="inline-flex items-center gap-2 px-3 py-1.5 btn-shape bg-amber-500/80 hover:bg-amber-500 text-white text-xs font-medium transition-colors disabled:opacity-40"
+                      >
+                        <Plus size={16} /> Add to Layer
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Placeholder for future effects */}
                 <div className="rounded-xl border border-white/10 bg-white/5 p-3">
                   <div className="text-[11px] text-white/60">
@@ -4901,6 +5504,13 @@ export default function Mixer() {
                     lastLoadedSnapshot.current = JSON.stringify(
                       layerSnapshot()
                     );
+                    // Reflect the created preset in the URL
+                    try {
+                      didAutoloadRef.current = true;
+                      router.replace(
+                        `/app?preset=${encodeURIComponent(created.id)}`
+                      );
+                    } catch {}
                   }
                   setShowSaveAsModal(false);
                 } else if (e.key === "Escape") {
@@ -4933,6 +5543,13 @@ export default function Mixer() {
                     lastLoadedSnapshot.current = JSON.stringify(
                       layerSnapshot()
                     );
+                    // Reflect the created preset in the URL
+                    try {
+                      didAutoloadRef.current = true;
+                      router.replace(
+                        `/app?preset=${encodeURIComponent(created.id)}`
+                      );
+                    } catch {}
                   }
                   setShowSaveAsModal(false);
                 }}

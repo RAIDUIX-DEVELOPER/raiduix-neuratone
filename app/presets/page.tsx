@@ -25,6 +25,31 @@ export default function PresetsHub() {
       title: "Focus",
       desc: "Beta/SMR (~14–20 Hz) for concentration. Clear but moderate modulation with minimal ambience.",
     },
+    {
+      href: "/presets/solfeggio-528",
+      title: "Solfeggio 528",
+      desc: "Gentle bloom: 528 Hz carrier with light ambience and ~8 Hz modulation.",
+    },
+    {
+      href: "/presets/solfeggio-396",
+      title: "Solfeggio 396",
+      desc: "Deep ground: low delta (~3 Hz) under a 396 Hz carrier with warm brown noise.",
+    },
+    {
+      href: "/presets/solfeggio-639",
+      title: "Solfeggio 639",
+      desc: "Heart coherence: 639 Hz with soft chorus and pink noise for width.",
+    },
+    {
+      href: "/presets/solfeggio-741",
+      title: "Solfeggio 741",
+      desc: "Clear focus: 741 Hz with ~15–18 Hz drive and tidy multiband shaping.",
+    },
+    {
+      href: "/presets/solfeggio-852",
+      title: "Solfeggio 852",
+      desc: "Awake clarity: 852 Hz with light phasing, exciter, and subtle space.",
+    },
   ];
   const listJsonLd = {
     "@context": "https://schema.org",

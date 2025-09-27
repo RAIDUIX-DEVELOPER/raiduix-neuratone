@@ -62,13 +62,13 @@ export interface PhaserEffect extends BaseEffect {
 }
 export interface PingPongEffect extends BaseEffect {
   kind: "pingpong";
-  delayTime: number;
+  time: number; // milliseconds
   feedback: number;
   mix: number;
 }
 export interface CombFilterEffect extends BaseEffect {
   kind: "combfilter";
-  delayTime: number;
+  frequency: number; // Hz
   resonance: number;
   mix: number;
 }
@@ -89,7 +89,8 @@ export interface GateEffect extends BaseEffect {
 export interface HarmonicExciterEffect extends BaseEffect {
   kind: "harmonicexciter";
   drive: number;
-  frequency: number;
+  harmonics: number; // 0..100 amount of added harmonics
+  tone: number; // 0..100 tonal tilt
   mix: number;
 }
 

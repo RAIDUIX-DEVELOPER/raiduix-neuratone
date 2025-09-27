@@ -428,19 +428,24 @@ export function createBinauralLayer(layer: SoundLayer): EngineHandle {
       } else if (fx.kind === "phaser") {
         const existing = phaserHandles.get(fx.id);
         if (!existing) {
+          // createPhaserNode signature: (ctx, rate?, depth?, stages?, mix?, notchDepth?, resonance?, feedback?, lfoShape?)
           const handle = createPhaserNode(
             ctxLocal,
-            fx.rate,
-            fx.depth,
-            fx.feedback,
-            fx.stages
+            fx.rate ?? 0.5,
+            fx.depth ?? 50,
+            fx.stages ?? 4
           );
+          if (fx.feedback !== undefined) {
+            try {
+              handle.setFeedback(fx.feedback);
+            } catch {}
+          }
           phaserHandles.set(fx.id, handle);
           if (playing) handle.start();
         } else {
           existing.setRate(fx.rate ?? 0.5);
           existing.setDepth(fx.depth ?? 50);
-          existing.setFeedback(fx.feedback ?? 0);
+          if (fx.feedback !== undefined) existing.setFeedback(fx.feedback);
           existing.setStages(fx.stages ?? 4);
         }
       } else if (fx.kind === "pingpong") {
@@ -448,13 +453,13 @@ export function createBinauralLayer(layer: SoundLayer): EngineHandle {
         if (!existing) {
           const handle = createPingPongDelayNode(
             ctxLocal,
-            fx.delayTime,
+            fx.time,
             fx.feedback,
             fx.mix
           );
           pingpongHandles.set(fx.id, handle);
         } else {
-          existing.setTime(fx.delayTime);
+          existing.setTime(fx.time);
           existing.setFeedback(fx.feedback);
           existing.setMix(fx.mix);
         }
@@ -463,41 +468,46 @@ export function createBinauralLayer(layer: SoundLayer): EngineHandle {
         if (!existing) {
           const handle = createCombFilterNode(
             ctxLocal,
-            fx.delayTime * 1000,
+            fx.frequency,
             fx.resonance,
             fx.mix
           );
           combfilterHandles.set(fx.id, handle);
         } else {
-          existing.setFrequency(fx.delayTime * 1000);
+          existing.setFrequency(fx.frequency);
           existing.setResonance(fx.resonance);
           existing.setMix(fx.mix);
         }
       } else if (fx.kind === "acidfilter") {
         const existing = acidfilterHandles.get(fx.id);
+        const lfoRate = (fx as any).lfoRate ?? (fx as any).rate ?? fx.rate;
+        const lfoDepth =
+          (fx as any).lfoDepth ?? (fx as any).envelope ?? fx.envelope;
         if (!existing) {
           const handle = createAcidFilterNode(
             ctxLocal,
             fx.cutoff,
             fx.resonance,
-            fx.rate,
-            fx.envelope
+            lfoRate,
+            lfoDepth
           );
           acidfilterHandles.set(fx.id, handle);
           if (playing) handle.start();
         } else {
           existing.setCutoff(fx.cutoff);
           existing.setResonance(fx.resonance);
-          existing.setLfoRate(fx.rate);
-          existing.setLfoDepth(fx.envelope);
+          if (lfoRate !== undefined) existing.setLfoRate(lfoRate);
+          if (lfoDepth !== undefined) existing.setLfoDepth(lfoDepth);
         }
       } else if (fx.kind === "gate") {
         const existing = gateHandles.get(fx.id);
+        const threshold =
+          (fx as any).threshold ?? (fx as any).depth ?? fx.depth ?? 50;
         if (!existing) {
           const handle = createGateEffectNode(
             ctxLocal as any,
             fx.rate,
-            fx.depth,
+            threshold,
             fx.attack,
             fx.release
           );
@@ -505,7 +515,7 @@ export function createBinauralLayer(layer: SoundLayer): EngineHandle {
           if (playing) handle.start();
         } else {
           existing.setRate(fx.rate ?? 4);
-          existing.setThreshold(fx.depth ?? 50);
+          existing.setThreshold(threshold);
           existing.setAttack(fx.attack ?? 10);
           existing.setRelease(fx.release ?? 100);
         }
@@ -515,15 +525,16 @@ export function createBinauralLayer(layer: SoundLayer): EngineHandle {
           const handle = createHarmonicExciterNode(
             ctxLocal as any,
             fx.drive,
-            fx.frequency,
-            fx.mix,
+            fx.harmonics,
+            fx.tone,
             fx.mix
           );
           harmonicexciterHandles.set(fx.id, handle);
         } else {
           existing.setDrive(fx.drive);
           existing.setMix(fx.mix);
-          existing.setTone(fx.frequency);
+          existing.setHarmonics(fx.harmonics);
+          existing.setTone(fx.tone);
         }
       } else if (fx.kind === "reverb") {
         const existing = reverbHandles.get(fx.id);

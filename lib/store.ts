@@ -158,6 +158,288 @@ const defaultPresets: Preset[] = [
       },
     ],
   },
+  // New Solfeggio‑inspired presets
+  {
+    id: "preset-solfeggio-528",
+    name: "Solfeggio 528 — Gentle Bloom",
+    layers: [
+      {
+        id: "solf528-b1",
+        type: "binaural",
+        baseFreq: 528,
+        beatOffset: 8,
+        volume: 0.5,
+        pan: 0,
+        wave: "sine",
+        isPlaying: false,
+        effects: [
+          {
+            id: "fx-528-noise",
+            kind: "noise",
+            type: "pink",
+            gain: 0.12,
+            pan: 0,
+            lpfHz: 8000,
+            autopanHz: 0.05,
+            autopanDepth: 0.3,
+          },
+          {
+            id: "fx-528-rev",
+            kind: "reverb",
+            roomSize: 45,
+            damping: 30,
+            diffusion: 65,
+            density: 70,
+            predelay: 15,
+            width: 100,
+            mix: 18,
+            modulation: 10,
+          },
+          {
+            id: "fx-528-autopan",
+            kind: "autopan",
+            rate: 0.12,
+            depth: 0.5,
+          },
+        ],
+      },
+      {
+        id: "solf528-i1",
+        type: "isochronic",
+        baseFreq: 180,
+        pulseFreq: 8,
+        volume: 0.16,
+        pan: 0,
+        wave: "sine",
+        isPlaying: false,
+        effects: [
+          {
+            id: "fx-528-phs",
+            kind: "phaser",
+            rate: 0.25,
+            depth: 60,
+            stages: 4,
+            feedback: 10,
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: "preset-solfeggio-396",
+    name: "Solfeggio 396 — Deep Ground",
+    layers: [
+      {
+        id: "solf396-b1",
+        type: "binaural",
+        baseFreq: 396,
+        beatOffset: 3,
+        volume: 0.42,
+        pan: 0,
+        wave: "sine",
+        isPlaying: false,
+        effects: [
+          {
+            id: "fx-396-noise",
+            kind: "noise",
+            type: "brown",
+            gain: 0.12,
+            pan: 0,
+            lpfHz: 6000,
+            autopanHz: 0.04,
+            autopanDepth: 0.25,
+          },
+          {
+            id: "fx-396-trem",
+            kind: "tremolo",
+            rate: 2,
+            depth: 25,
+          },
+          {
+            id: "fx-396-rev",
+            kind: "reverb",
+            roomSize: 40,
+            damping: 25,
+            diffusion: 60,
+            density: 70,
+            predelay: 10,
+            width: 100,
+            mix: 15,
+            modulation: 8,
+          },
+        ],
+      },
+      {
+        id: "solf396-i1",
+        type: "isochronic",
+        baseFreq: 132,
+        pulseFreq: 3,
+        volume: 0.12,
+        pan: 0,
+        wave: "sine",
+        isPlaying: false,
+      },
+    ],
+  },
+  {
+    id: "preset-solfeggio-639",
+    name: "Solfeggio 639 — Heart Coherence",
+    layers: [
+      {
+        id: "solf639-b1",
+        type: "binaural",
+        baseFreq: 639,
+        beatOffset: 7,
+        volume: 0.46,
+        pan: 0,
+        wave: "sine",
+        isPlaying: false,
+        effects: [
+          {
+            id: "fx-639-noise",
+            kind: "noise",
+            type: "pink",
+            gain: 0.1,
+            pan: 0,
+            lpfHz: 9000,
+            autopanHz: 0.06,
+            autopanDepth: 0.35,
+          },
+          {
+            id: "fx-639-chor",
+            kind: "chorus",
+            rate: 0.35,
+            depth: 12,
+            mix: 20,
+            feedback: 0,
+            stereoWidth: 80,
+            damping: 0,
+          },
+          {
+            id: "fx-639-rev",
+            kind: "reverb",
+            roomSize: 48,
+            damping: 28,
+            diffusion: 65,
+            density: 75,
+            predelay: 18,
+            width: 100,
+            mix: 20,
+            modulation: 10,
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: "preset-solfeggio-741",
+    name: "Solfeggio 741 — Clear Focus",
+    layers: [
+      {
+        id: "solf741-b1",
+        type: "binaural",
+        baseFreq: 741,
+        beatOffset: 15,
+        volume: 0.45,
+        pan: 0,
+        wave: "sine",
+        isPlaying: false,
+        effects: [
+          {
+            id: "fx-741-noise",
+            kind: "noise",
+            type: "white",
+            gain: 0.06,
+            pan: 0,
+            lpfHz: 12000,
+            autopanHz: 0.08,
+            autopanDepth: 0.3,
+          },
+          {
+            id: "fx-741-flg",
+            kind: "flanger",
+            rate: 0.25,
+            depth: 10,
+            feedback: 10,
+            mix: 15,
+          },
+          {
+            id: "fx-741-mb",
+            kind: "multibandcompressor",
+            crossoverLow: 200,
+            crossoverHigh: 2000,
+            mix: 70,
+          },
+        ],
+      },
+      {
+        id: "solf741-i1",
+        type: "isochronic",
+        baseFreq: 185,
+        pulseFreq: 18,
+        volume: 0.12,
+        pan: 0,
+        wave: "sine",
+        isPlaying: false,
+      },
+    ],
+  },
+  {
+    id: "preset-solfeggio-852",
+    name: "Solfeggio 852 — Awake Clarity",
+    layers: [
+      {
+        id: "solf852-b1",
+        type: "binaural",
+        baseFreq: 852,
+        beatOffset: 18,
+        volume: 0.44,
+        pan: 0,
+        wave: "sine",
+        isPlaying: false,
+        effects: [
+          {
+            id: "fx-852-noise",
+            kind: "noise",
+            type: "pink",
+            gain: 0.08,
+            pan: 0,
+            lpfHz: 11000,
+            autopanHz: 0.1,
+            autopanDepth: 0.35,
+          },
+          {
+            id: "fx-852-phs",
+            kind: "phaser",
+            rate: 0.35,
+            depth: 55,
+            stages: 4,
+            feedback: 12,
+          },
+          {
+            id: "fx-852-exc",
+            kind: "harmonicexciter",
+            drive: 18,
+            harmonics: 35,
+            tone: 55,
+            mix: 20,
+          },
+          {
+            id: "fx-852-rev",
+            kind: "reverb",
+            roomSize: 42,
+            damping: 26,
+            diffusion: 60,
+            density: 70,
+            predelay: 12,
+            width: 100,
+            mix: 15,
+            modulation: 8,
+          },
+        ],
+      },
+    ],
+  },
 ];
 
 export const useAppStore = create<AppState>()(
@@ -227,7 +509,23 @@ export const useAppStore = create<AppState>()(
           effects: [],
         },
       ],
-      presets: defaultPresets,
+      // Ensure default presets are present; if persisted store exists from an older version,
+      // merge any missing defaults (including new Solfeggio set) so they show up in the library.
+      presets: (() => {
+        const existing =
+          typeof window !== "undefined"
+            ? (JSON.parse(localStorage.getItem("neuratone-store") || "{}")
+                ?.state?.presets as Preset[] | undefined)
+            : undefined;
+        if (!Array.isArray(existing) || existing.length === 0)
+          return defaultPresets;
+        const byId = new Set(existing.map((p) => p.id));
+        const merged = [...existing];
+        for (const d of defaultPresets) {
+          if (!byId.has(d.id)) merged.push(d);
+        }
+        return merged;
+      })(),
       addLayer: (l = {}) =>
         set((state) => {
           if (state.layers.length >= 5) return state; // enforce cap
@@ -384,7 +682,18 @@ export const useAppStore = create<AppState>()(
         if (get().presets.length === 0) {
           set((state) => ({ ...state, presets: defaultPresets }));
         }
-        const p = get().presets.find((p) => p.id === id);
+        let p = get().presets.find((p) => p.id === id);
+        // If not found (e.g., existing users with older persisted store), try to resolve
+        if (!p) {
+          const fallback = defaultPresets.find((dp) => dp.id === id);
+          if (fallback) {
+            set((state) => ({
+              ...state,
+              presets: [...state.presets, fallback],
+            }));
+            p = fallback;
+          }
+        }
         if (p) {
           set((state) => ({
             ...state,
@@ -407,6 +716,32 @@ export const useAppStore = create<AppState>()(
           presets: state.presets,
           lastPresetId: state.lastPresetId,
         } as unknown as AppState),
+      // Ensure that on rehydrate we keep persisted data but also union in any
+      // new default presets introduced by newer versions.
+      merge: (persistedState, currentState) => {
+        const p = (persistedState as any) || {};
+        const c = (currentState as any) || {};
+        const persistedPresets: Preset[] = Array.isArray(p.presets)
+          ? p.presets
+          : [];
+        const currentPresets: Preset[] = Array.isArray(c.presets)
+          ? c.presets
+          : defaultPresets;
+        const persistedById = new Map<string, Preset>(
+          persistedPresets.map((pr) => [pr.id, pr])
+        );
+        // Start from persisted and add any defaults not present
+        const merged = [...persistedPresets];
+        for (const dp of defaultPresets) {
+          if (!persistedById.has(dp.id)) merged.push(dp);
+        }
+        return {
+          ...c,
+          ...p,
+          presets: merged,
+          lastPresetId: p.lastPresetId ?? c.lastPresetId ?? null,
+        } as AppState;
+      },
     }
   )
 );

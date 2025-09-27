@@ -72,6 +72,12 @@ export default function MinimalCinematicHero() {
       { key: "sleep", label: "Sleep" },
       { key: "calm", label: "Calm" },
       { key: "focus", label: "Focus" },
+      // Solfeggio presets
+      { key: "solfeggio-396", label: "Solfeggio 396" },
+      { key: "solfeggio-528", label: "Solfeggio 528" },
+      { key: "solfeggio-639", label: "Solfeggio 639" },
+      { key: "solfeggio-741", label: "Solfeggio 741" },
+      { key: "solfeggio-852", label: "Solfeggio 852" },
     ],
     []
   );
@@ -83,6 +89,16 @@ export default function MinimalCinematicHero() {
         return "bg-teal-500/15 hover:bg-teal-500/25 text-teal-200/90 hover:text-teal-100 border-teal-400/25";
       case "focus":
         return "bg-sky-500/15 hover:bg-sky-500/25 text-sky-200/90 hover:text-sky-100 border-sky-400/25";
+      case "solfeggio-396":
+        return "bg-rose-500/15 hover:bg-rose-500/25 text-rose-200/90 hover:text-rose-100 border-rose-400/25";
+      case "solfeggio-528":
+        return "bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-200/90 hover:text-emerald-100 border-emerald-400/25";
+      case "solfeggio-639":
+        return "bg-amber-500/15 hover:bg-amber-500/25 text-amber-200/90 hover:text-amber-100 border-amber-400/25";
+      case "solfeggio-741":
+        return "bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-200/90 hover:text-indigo-100 border-indigo-400/25";
+      case "solfeggio-852":
+        return "bg-fuchsia-500/15 hover:bg-fuchsia-500/25 text-fuchsia-200/90 hover:text-fuchsia-100 border-fuchsia-400/25";
       default:
         return "bg-[#121826]/60 hover:bg-[#1b2331] text-slate-200/90 border-white/10";
     }

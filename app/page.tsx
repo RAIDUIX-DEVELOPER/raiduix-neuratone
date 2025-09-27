@@ -534,6 +534,67 @@ export default function Home() {
                   >
                     Sleep
                   </Link>
+                  {/* New Solfeggio preset chips */}
+                  <Link
+                    href={{
+                      pathname: "/app",
+                      query: { preset: "solfeggio-396" },
+                    }}
+                    prefetch
+                    className="spotlight btn-shape text-[12px] px-3 py-1.5 ring-1 ring-white/5 hover:ring-teal-400/30 text-slate-200/85 hover:text-teal-100 bg-[#0b1220]/70"
+                    data-analytics-event="faq_cta_click"
+                    data-analytics-label="preset_solfeggio_396"
+                  >
+                    Solfeggio 396
+                  </Link>
+                  <Link
+                    href={{
+                      pathname: "/app",
+                      query: { preset: "solfeggio-528" },
+                    }}
+                    prefetch
+                    className="spotlight btn-shape text-[12px] px-3 py-1.5 ring-1 ring-white/5 hover:ring-teal-400/30 text-slate-200/85 hover:text-teal-100 bg-[#0b1220]/70"
+                    data-analytics-event="faq_cta_click"
+                    data-analytics-label="preset_solfeggio_528"
+                  >
+                    Solfeggio 528
+                  </Link>
+                  <Link
+                    href={{
+                      pathname: "/app",
+                      query: { preset: "solfeggio-639" },
+                    }}
+                    prefetch
+                    className="spotlight btn-shape text-[12px] px-3 py-1.5 ring-1 ring-white/5 hover:ring-teal-400/30 text-slate-200/85 hover:text-teal-100 bg-[#0b1220]/70"
+                    data-analytics-event="faq_cta_click"
+                    data-analytics-label="preset_solfeggio_639"
+                  >
+                    Solfeggio 639
+                  </Link>
+                  <Link
+                    href={{
+                      pathname: "/app",
+                      query: { preset: "solfeggio-741" },
+                    }}
+                    prefetch
+                    className="spotlight btn-shape text-[12px] px-3 py-1.5 ring-1 ring-white/5 hover:ring-teal-400/30 text-slate-200/85 hover:text-teal-100 bg-[#0b1220]/70"
+                    data-analytics-event="faq_cta_click"
+                    data-analytics-label="preset_solfeggio_741"
+                  >
+                    Solfeggio 741
+                  </Link>
+                  <Link
+                    href={{
+                      pathname: "/app",
+                      query: { preset: "solfeggio-852" },
+                    }}
+                    prefetch
+                    className="spotlight btn-shape text-[12px] px-3 py-1.5 ring-1 ring-white/5 hover:ring-teal-400/30 text-slate-200/85 hover:text-teal-100 bg-[#0b1220]/70"
+                    data-analytics-event="faq_cta_click"
+                    data-analytics-label="preset_solfeggio_852"
+                  >
+                    Solfeggio 852
+                  </Link>
                   <Link
                     href={{ pathname: "/app" }}
                     prefetch

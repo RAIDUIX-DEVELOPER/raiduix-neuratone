@@ -9,13 +9,32 @@
 
 ---
 
+## Table of Contents
+
+- Intro
+- Current Feature Set
+- Professional Audio Effects
+- Audio Engine Architecture
+- State & Persistence
+- Visualizer
+- Getting Started
+- Project Structure
+- Presets Library (Solfeggio set)
+- SEO, PWA, and Analytics
+- Development Scripts
+- Troubleshooting FAQ
+- Accessibility & Performance
+- Roadmap
+- Contributing
+- License & Disclaimer
+
 ## ✨ Current Feature Set
 
 - Up to **5 simultaneous layers** (binaural, isochronic, ambient)
 - Real‑time controls with precise inputs:
   - Base frequency 1–5000 Hz (slider + number input)
   - Beat offset (binaural) 0–1000 Hz (symmetric L/R application)
-  - Pulse rate (isochronic) 0.5–1000 Hz
+  - Pulse rate (isochronic) 0.1–50 Hz
   - Waveform: sine / square / saw / triangle
   - Pan and volume per layer
 - Resilient audio engine: hybrid **Tone.js + native Web Audio** with safe fallbacks
@@ -35,6 +54,12 @@
 - **Unified play/stop** toggles (global and per‑layer)
 - PWA scaffolding (service worker only in prod) — offline audio streams are not bundled
 - Mobile‑first UI with accessible contrast and subtle motion
+
+Notes on accuracy and real‑time behavior:
+
+- Isochronic pulses use audio‑rate gating with smoothing to avoid clicks and ensure precise pulse frequency output.
+- Effect parameters update live; the signal path is safely rebuilt so changes are audible immediately without artifacts.
+- Effect modules accept legacy/alias parameter names to keep UI and engine in sync during refactors.
 
 ## 🎛️ Professional Audio Effects
 
@@ -171,7 +196,7 @@ NeuraTone implements a sophisticated multi-engine audio architecture with profes
 | Type       | Generation            | Modulation                         | Notes                                                        |
 | ---------- | --------------------- | ---------------------------------- | ------------------------------------------------------------ |
 | Binaural   | Two oscillators (L/R) | Frequency difference (beat offset) | Symmetric around base; clamps ≥ 1 Hz; Tone.js or native path |
-| Isochronic | Single oscillator     | Gated pulses / intervals           | Envelope (Tone) or native Gain gate; clamps ≥ 1 Hz           |
+| Isochronic | Single oscillator     | Gated pulses / intervals           | Audio‑rate gate with smoothing; clamps ≥ 1 Hz                |
 | Ambient    | Howler loop           | Volume / pan / source swap         | Replace with licensed/CC0 assets                             |
 | Effects    | AudioWorklet + panner | Per‑effect gain/pan                | Noise worklet (white/pink/brown), per‑context module loading |
 
@@ -231,6 +256,16 @@ pnpm build
 pnpm start
 ```
 
+Using npm instead of pnpm:
+
+```bash
+npm install
+npm run dev
+# Build
+npm run build
+npm start
+```
+
 ## 🛠 Project Structure (excerpt)
 
 ```
@@ -246,6 +281,17 @@ lib/
 public/
 	worklets/noise-processor.js  # AudioWorklet: white/pink/brown noise
 ```
+
+## 🎚 Presets Library (Solfeggio set)
+
+- Built‑in presets are available in the Presets drawer and as dedicated pages under `/presets/*`.
+- Includes five Solfeggio‑inspired soundscapes that blend carriers, binaural/isochronic beats, subtle effects, and noise layers:
+  - 396 Hz · 528 Hz · 639 Hz · 741 Hz · 852 Hz
+- Each preset includes balanced levels, gentle spatialization, and conservative dynamics to avoid harshness.
+- Presets persist locally; you can customize, “Save As…”, and delete.
+- Autoload: Navigate with a `?preset=<id>` query to open the Mixer and load a preset directly.
+
+SEO routing is configured so the hub and individual preset pages are discoverable and included in the sitemap.
 
 ## 🔐 Permissions & Safety Notes
 
@@ -267,6 +313,42 @@ const ambientSources = {
 - If audio fails to start initially: ensure a user gesture occurred (autoplay policies) – click a Play button.
 - Noise effect error about AudioWorklet? The app loads the worklet per‑context; if you hot‑reloaded, toggle the Effect preview or restart the layer.
 - Layer removal leaves ghost audio? Engines call `stop()` + `dispose()` before store removal – check console for any thrown DOMExceptions and retry.
+- If effects don’t seem to apply: the engine rebuilds the per‑layer effect chain on updates—toggle the effect off/on to force a reconcile if you hot‑reloaded during development.
+- Phaser specific: creation uses a rate/depth/stages signature with feedback set via a setter—ensure your UI maps those correctly.
+- Ring Mod & other previews: the Effects Library uses a separate preview path with an injected oscillator so effects are audible without a layer.
+
+## 🌐 SEO, PWA, and Analytics
+
+- SEO: `app/sitemap.ts` and `app/robots.ts` generate sitemap and robots; new preset routes are included.
+- PWA: `next-pwa` is wired for production builds; service worker is not active in dev.
+- Analytics: `@vercel/analytics` can be enabled per page or globally; keep usage minimal for privacy.
+
+## 🧰 Development Scripts
+
+Scripts defined in `package.json`:
+
+- `dev` — Next.js dev server (Turbopack)
+- `build` — Production build (Turbopack)
+- `start` — Start production server
+- `lint` — Run Next lint
+- `analyze:bundle` — Visualize bundle size
+- `test`, `test:watch`, `test:ci` — Jest test suite
+
+Optional tasks (VS Code tasks.json) are available in this repo to streamline CI‑like checks.
+
+## 🧯 Troubleshooting FAQ
+
+- No audio on first play? Most browsers require a user gesture—click Play once to unlock the AudioContext.
+- Hearing clicks on isochronic pulses? The gate uses smoothing, but avoid extreme pulse rates; 0.1–50 Hz is the intended range.
+- Ghost audio after hot‑reload? Stop layers and restart; engines call stop+dispose, but dev hot‑swap can leave dangling nodes.
+- Noise effect failed to initialize? The noise AudioWorklet is loaded per context—toggle the effect or reload the page.
+- CPU high on mobile? Reduce active layers, disable heavy effects (reverb/compressor), and lower visualizer quality.
+
+## ♿ Accessibility & Performance
+
+- Color contrast meets accessible defaults; motion is subtle and respects reduced‑motion where possible.
+- Audio output uses a master bus with DC blocking, gentle compression, and soft clipping to avoid spikes.
+- Effects and analysers are shared and reused where possible to minimize CPU.
 
 ## 🧭 Roadmap (Potential Next Steps)
 
@@ -280,6 +362,13 @@ const ambientSources = {
 - ✅ **Professional Effects Library** (Recently Added)
 - Advanced effect chaining and routing
 - MIDI controller integration for real-time effect control
+
+## 🧪 How to add a new Effect (developer quick‑start)
+
+1. Create an effect node module in `lib/effects/<name>.ts` exposing a handle with `inputGain`, `outputGain`, and parameter setters.
+2. Register it in the layer engines by adding it to the reconcile logic and to `rebuildEffectChain` mappings.
+3. Add a preview block in the Effects Library UI (Mixer) so users can audition it.
+4. Add basic tests (happy path + parameter updates) and a short note in this README.
 
 ## 🤝 Contributing
 

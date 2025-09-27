@@ -70,19 +70,21 @@ const getCtx = getAudioContext;
 export function createIsochronicLayer(layer: SoundLayer): EngineHandle {
   let tone: any,
     osc: any,
-    env: any,
     volNode: any,
-    panNode: any,
     analyserToneFft: any,
     analyserToneWave: any,
-    interval: number | null = null,
     playing = false;
   let ctx = getCtx();
   let carrier: OscillatorNode | null = null;
-  let gate: GainNode | null = null;
+  let gate: GainNode | null = null; // audio-rate gated VCA
   let gain: GainNode | null = null;
   let stereo: StereoPannerNode | null = null;
   let analyserNode: AnalyserNode | null = null;
+  // Pulse LFO chain for precise isochronic gating
+  let lfo: OscillatorNode | null = null;
+  let lfoScale: GainNode | null = null; // scales LFO to +/-0.5
+  let lfoSmooth: BiquadFilterNode | null = null; // optional low-pass to soften edges
+  // In WebAudio, AudioParam sums base value with any connected signals. We'll set gate.gain.value=0.5 and add +/-0.5 from LFO to get [0,1].
   let effectChainInput: AudioNode | null = null;
   let effectChainOutput: AudioNode | null = null;
   let effectChainDownstream: AudioNode | null = null;
@@ -298,16 +300,14 @@ export function createIsochronicLayer(layer: SoundLayer): EngineHandle {
         const updateParam = (val: number) => {
           if (fx.target === "pulseFreq") {
             layer.pulseFreq = val;
-            if (interval) {
-              clearInterval(interval);
-              interval = window.setInterval(() => {
-                if (!ctx || !gate) return;
-                gate.gain.setValueAtTime(1, ctx.currentTime);
-                gate.gain.exponentialRampToValueAtTime(
-                  0.0001,
-                  ctx.currentTime + 0.05
-                );
-              }, 1000 / Math.max(1, layer.pulseFreq || 10));
+            if (lfo && ctx) {
+              const f = Math.max(0.1, Math.min(50, layer.pulseFreq || 10));
+              try {
+                lfo.frequency.cancelScheduledValues(ctx.currentTime);
+                lfo.frequency.setTargetAtTime(f, ctx.currentTime, 0.03);
+              } catch {
+                lfo.frequency.value = f;
+              }
             }
           } else if (fx.target === "volume") {
             layer.volume = val;
@@ -416,17 +416,24 @@ export function createIsochronicLayer(layer: SoundLayer): EngineHandle {
       } else if (fx.kind === "phaser") {
         const existing = phaserHandles.get(fx.id);
         if (!existing) {
+          // createPhaserNode signature: (ctx, rate?, depth?, stages?, mix?, notchDepth?, resonance?, feedback?, lfoShape?)
           const handle = createPhaserNode(
             ctxLocal,
-            fx.rate,
-            fx.depth,
-            fx.stages
+            fx.rate ?? 0.5,
+            fx.depth ?? 50,
+            fx.stages ?? 4
           );
+          if (fx.feedback !== undefined) {
+            try {
+              handle.setFeedback(fx.feedback);
+            } catch {}
+          }
           phaserHandles.set(fx.id, handle);
           if (playing) handle.start();
         } else {
           existing.setRate(fx.rate ?? 0.5);
           existing.setDepth(fx.depth ?? 50);
+          if (fx.feedback !== undefined) existing.setFeedback(fx.feedback);
           existing.setStages(fx.stages ?? 4);
         }
       } else if (fx.kind === "pingpong") {
@@ -434,13 +441,13 @@ export function createIsochronicLayer(layer: SoundLayer): EngineHandle {
         if (!existing) {
           const handle = createPingPongDelayNode(
             ctxLocal,
-            fx.delayTime,
+            fx.time,
             fx.feedback,
             fx.mix
           );
           pingpongHandles.set(fx.id, handle);
         } else {
-          existing.setTime(fx.delayTime);
+          existing.setTime(fx.time);
           existing.setFeedback(fx.feedback);
           existing.setMix(fx.mix);
         }
@@ -449,41 +456,48 @@ export function createIsochronicLayer(layer: SoundLayer): EngineHandle {
         if (!existing) {
           const handle = createCombFilterNode(
             ctxLocal,
-            fx.delayTime * 1000,
+            fx.frequency,
             fx.resonance,
             fx.mix
           );
           combfilterHandles.set(fx.id, handle);
         } else {
-          existing.setFrequency(fx.delayTime * 1000);
+          existing.setFrequency(fx.frequency);
           existing.setResonance(fx.resonance);
           existing.setMix(fx.mix);
         }
       } else if (fx.kind === "acidfilter") {
         const existing = acidfilterHandles.get(fx.id);
+        // Accept legacy/UI field names
+        const lfoRate = (fx as any).lfoRate ?? (fx as any).rate ?? fx.rate;
+        const lfoDepth =
+          (fx as any).lfoDepth ?? (fx as any).envelope ?? fx.envelope;
         if (!existing) {
           const handle = createAcidFilterNode(
             ctxLocal,
             fx.cutoff,
             fx.resonance,
-            fx.rate,
-            fx.envelope
+            lfoRate,
+            lfoDepth
           );
           acidfilterHandles.set(fx.id, handle);
           if (playing) handle.start();
         } else {
           existing.setCutoff(fx.cutoff);
           existing.setResonance(fx.resonance);
-          existing.setLfoRate(fx.rate);
-          existing.setLfoDepth(fx.envelope);
+          if (lfoRate !== undefined) existing.setLfoRate(lfoRate);
+          if (lfoDepth !== undefined) existing.setLfoDepth(lfoDepth);
         }
       } else if (fx.kind === "gate") {
         const existing = gateFxHandles.get(fx.id);
+        // Accept legacy/UI field names
+        const threshold =
+          (fx as any).threshold ?? (fx as any).depth ?? fx.depth ?? 50;
         if (!existing) {
           const handle = createGateEffectNode(
             ctxLocal as any,
             fx.rate,
-            fx.depth,
+            threshold,
             fx.attack,
             fx.release
           );
@@ -491,7 +505,7 @@ export function createIsochronicLayer(layer: SoundLayer): EngineHandle {
           if (playing) handle.start();
         } else {
           existing.setRate(fx.rate ?? 4);
-          existing.setThreshold(fx.depth ?? 50);
+          existing.setThreshold(threshold);
           existing.setAttack(fx.attack ?? 10);
           existing.setRelease(fx.release ?? 100);
         }
@@ -501,15 +515,16 @@ export function createIsochronicLayer(layer: SoundLayer): EngineHandle {
           const handle = createHarmonicExciterNode(
             ctxLocal as any,
             fx.drive,
-            fx.frequency,
-            fx.mix,
+            fx.harmonics,
+            fx.tone,
             fx.mix
           );
           harmonicexciterHandles.set(fx.id, handle);
         } else {
           existing.setDrive(fx.drive);
           existing.setMix(fx.mix);
-          existing.setTone(fx.frequency);
+          existing.setHarmonics(fx.harmonics);
+          existing.setTone(fx.tone);
         }
       } else if (fx.kind === "reverb") {
         const existing = reverbHandles.get(fx.id);
@@ -587,10 +602,87 @@ export function createIsochronicLayer(layer: SoundLayer): EngineHandle {
     );
   }
 
+  function setupPulseLfo(localCtx: AudioContext) {
+    // Create LFO and scaling if not present
+    if (!lfo) lfo = localCtx.createOscillator();
+    if (!lfoScale) lfoScale = localCtx.createGain();
+    if (!lfoSmooth) lfoSmooth = localCtx.createBiquadFilter();
+    // Square wave for distinct pulses
+    try {
+      lfo.type = "square";
+    } catch {
+      lfo.type = "sine";
+    }
+    const freq = Math.max(0.1, Math.min(50, layer.pulseFreq || 10));
+    lfo.frequency.value = freq;
+    // Scale to +/-0.5 and add 0.5 on the AudioParam base value (see gate setup)
+    lfoScale.gain.value = 0.5;
+    // Slightly smooth edges to avoid clicks when opening/closing the gate
+    try {
+      lfoSmooth.type = "lowpass";
+      // Dynamic cutoff based on pulse frequency (preserve shape, soften edges)
+      const cutoff = Math.min(
+        2000,
+        Math.max(100, (layer.pulseFreq || 10) * 120)
+      );
+      lfoSmooth.frequency.value = cutoff;
+      lfoSmooth.Q.value = 0.707;
+    } catch {}
+    try {
+      lfo.connect(lfoScale);
+      lfoScale.connect(lfoSmooth);
+      // lfoSmooth is connected to gate.gain where available in ensure()
+    } catch {}
+  }
+
+  // Recreate the LFO oscillator safely (needed after stop), and (re)connect to gate.gain
+  function recreatePulseLfo(localCtx: AudioContext) {
+    try {
+      lfo?.disconnect();
+    } catch {}
+    try {
+      // Some browsers throw if stop called twice; ignore
+      lfo?.stop?.();
+    } catch {}
+    lfo = localCtx.createOscillator();
+    try {
+      lfo.type = "square";
+    } catch {
+      lfo.type = "sine";
+    }
+    if (!lfoScale) lfoScale = localCtx.createGain();
+    if (!lfoSmooth) lfoSmooth = localCtx.createBiquadFilter();
+    lfoScale.gain.value = 0.5;
+    try {
+      lfoSmooth.type = "lowpass";
+      const cutoff = Math.min(
+        2000,
+        Math.max(100, (layer.pulseFreq || 10) * 120)
+      );
+      lfoSmooth.frequency.value = cutoff;
+      lfoSmooth.Q.value = 0.707;
+    } catch {}
+    try {
+      lfo.connect(lfoScale);
+      lfoScale.connect(lfoSmooth);
+    } catch {}
+    const f = Math.max(0.1, Math.min(50, layer.pulseFreq || 10));
+    lfo.frequency.value = f;
+    if (gate) {
+      try {
+        // Avoid duplicate summing connections
+        lfoSmooth.disconnect();
+      } catch {}
+      try {
+        lfoSmooth.connect((gate as GainNode).gain);
+      } catch {}
+    }
+  }
+
   async function ensure() {
     if (!tone) {
       tone = await loadTone();
-      if (tone?.Oscillator && tone?.AmplitudeEnvelope) {
+      if (tone?.Oscillator) {
         try {
           const shared = getCtx();
           tone.setContext?.(shared);
@@ -600,23 +692,29 @@ export function createIsochronicLayer(layer: SoundLayer): EngineHandle {
           Math.max(1, layer.baseFreq || 200),
           layer.wave || "sine"
         );
-        env = new tone.AmplitudeEnvelope({
-          attack: 0.01,
-          decay: 0.01,
-          sustain: 1,
-          release: 0.05,
-        });
         volNode = new tone.Volume(-60);
-        panNode = new tone.Panner(layer.pan || 0);
         analyserToneFft = new tone.Analyser("fft", 1024);
         analyserToneWave = new tone.Analyser("waveform", 1024);
         // Chain within Tone up to volume node; route to shared effect chain using native nodes
-        osc.chain(env, panNode, volNode);
+        // We'll insert a native GainNode (gate) after volNode for precise audio-rate pulse gating
+        osc.connect(volNode);
         try {
           const bus = getMasterBus(ctx || getCtx()!);
           stereo = (ctx || getCtx()!)!.createStereoPanner();
           stereo.pan.value = layer.pan || 0;
-          (volNode as any).connect?.(stereo);
+          // Create gated VCA and LFO
+          const local = (ctx || getCtx()!)!;
+          gate = local.createGain();
+          gate.gain.value = 0.5; // base value for (LFO*0.5 + 0.5) mapping
+          setupPulseLfo(local);
+          // Connect Tone -> gate -> stereo -> effects
+          (volNode as any).connect?.(gate);
+          // Connect LFO to gate gain via scaler
+          try {
+            // connect smoothing to AudioParam
+            lfoSmooth && lfoSmooth.connect(gate.gain);
+          } catch {}
+          gate.connect(stereo);
           // create shared effects chain
           const effectsInput = (ctx || getCtx()!)!.createGain();
           const effectsOutput = (ctx || getCtx()!)!.createGain();
@@ -639,7 +737,9 @@ export function createIsochronicLayer(layer: SoundLayer): EngineHandle {
       carrier.type = layer.wave || "sine";
       carrier.frequency.value = Math.max(1, layer.baseFreq || 200);
       gate = ctx.createGain();
-      gate.gain.value = 0;
+      // Base 0.5 + LFO (+/-0.5) => [0,1] pulses
+      gate.gain.value = 0.5;
+      setupPulseLfo(ctx);
       gain = ctx.createGain();
       gain.gain.value = layer.volume;
       stereo = ctx.createStereoPanner();
@@ -654,6 +754,10 @@ export function createIsochronicLayer(layer: SoundLayer): EngineHandle {
       effectChainInput = effectsInput;
       effectChainOutput = effectsOutput;
       carrier.connect(gate).connect(stereo).connect(gain).connect(effectsInput);
+      // Connect LFO scaler to gate gain
+      try {
+        lfoSmooth && lfoSmooth.connect(gate.gain);
+      } catch {}
       effectsInput.connect(effectsOutput);
       effectsOutput.connect(analyserNode);
       effectChainDownstream = analyserNode;
@@ -672,14 +776,27 @@ export function createIsochronicLayer(layer: SoundLayer): EngineHandle {
           if (rctx) ctx = rctx;
         } catch {}
         await tone.start?.();
+        // Smooth fade-in on Tone path to prevent clicks
+        try {
+          if (ctx && volNode) {
+            const targetDb = tone.gainToDb(layer.volume);
+            volNode.volume.setValueAtTime(-60, ctx.currentTime);
+            volNode.volume.linearRampToValueAtTime(
+              targetDb,
+              ctx.currentTime + 0.02
+            );
+          }
+        } catch {}
+        // Ensure fresh LFO instance (OscillatorNode cannot be restarted after stop)
+        try {
+          if (ctx) recreatePulseLfo(ctx);
+        } catch {}
         osc.start();
         playing = true;
-        if (interval === null) {
-          interval = window.setInterval(
-            () => env.triggerAttackRelease(0.1),
-            1000 / Math.max(1, layer.pulseFreq || 10)
-          );
-        }
+        // Start LFO for gating
+        try {
+          lfo?.start();
+        } catch {}
         await reconcileEffects(layer.effects);
         try {
           if (effectChainOutput && effectChainDownstream) {
@@ -689,6 +806,10 @@ export function createIsochronicLayer(layer: SoundLayer): EngineHandle {
         } catch {}
       } else if (carrier && gate && ctx) {
         await resumeIfSuspended();
+        // Ensure fresh LFO instance (OscillatorNode cannot be restarted after stop)
+        try {
+          recreatePulseLfo(ctx);
+        } catch {}
         carrier.start();
         try {
           gain!.gain.setValueAtTime(0, ctx.currentTime);
@@ -698,16 +819,10 @@ export function createIsochronicLayer(layer: SoundLayer): EngineHandle {
           );
         } catch {}
         playing = true;
-        if (interval === null) {
-          interval = window.setInterval(() => {
-            if (!ctx || !gate) return;
-            gate.gain.setValueAtTime(1, ctx.currentTime);
-            gate.gain.exponentialRampToValueAtTime(
-              0.0001,
-              ctx.currentTime + 0.05
-            );
-          }, 1000 / Math.max(1, layer.pulseFreq || 10));
-        }
+        // Start LFO for gating
+        try {
+          lfo?.start();
+        } catch {}
         await reconcileEffects(layer.effects);
         try {
           if (effectChainOutput && effectChainDownstream) {
@@ -720,7 +835,22 @@ export function createIsochronicLayer(layer: SoundLayer): EngineHandle {
     stop: () => {
       if (!playing) return;
       if (osc) {
-        osc.stop();
+        // Smooth fade-out on Tone path to avoid clicks before stopping
+        try {
+          if (ctx && volNode) {
+            volNode.volume.cancelScheduledValues(ctx.currentTime);
+            volNode.volume.setValueAtTime(
+              volNode.volume.value,
+              ctx.currentTime
+            );
+            volNode.volume.linearRampToValueAtTime(-60, ctx.currentTime + 0.03);
+          }
+        } catch {}
+        setTimeout(() => {
+          try {
+            osc.stop();
+          } catch {}
+        }, 35);
       }
       if (carrier && ctx) {
         try {
@@ -737,10 +867,10 @@ export function createIsochronicLayer(layer: SoundLayer): EngineHandle {
           carrier = null;
         }, 35);
       }
-      if (interval) {
-        clearInterval(interval);
-        interval = null;
-      }
+      // Stop LFO
+      try {
+        lfo?.stop();
+      } catch {}
       for (const h of noiseHandles.values()) {
         try {
           h.disconnect();
@@ -882,9 +1012,45 @@ export function createIsochronicLayer(layer: SoundLayer): EngineHandle {
             osc.frequency.value = Math.max(1, layer.baseFreq || 200);
           } catch {}
         }
-        if (l.volume !== undefined && volNode)
-          volNode.volume.value = tone.gainToDb(layer.volume);
-        if (l.pan !== undefined && panNode) panNode.pan.value = layer.pan || 0;
+        if (l.volume !== undefined && volNode) {
+          try {
+            if (ctx) {
+              const targetDb = tone.gainToDb(layer.volume);
+              volNode.volume.cancelScheduledValues(ctx.currentTime);
+              volNode.volume.setValueAtTime(
+                volNode.volume.value,
+                ctx.currentTime
+              );
+              volNode.volume.linearRampToValueAtTime(
+                targetDb,
+                ctx.currentTime + 0.02
+              );
+            } else {
+              volNode.volume.value = tone.gainToDb(layer.volume);
+            }
+          } catch {
+            volNode.volume.value = tone.gainToDb(layer.volume);
+          }
+        }
+        if (l.pulseFreq !== undefined && lfo && ctx) {
+          const f = Math.max(0.1, Math.min(50, layer.pulseFreq || 10));
+          try {
+            lfo.frequency.cancelScheduledValues(ctx.currentTime);
+            lfo.frequency.setTargetAtTime(f, ctx.currentTime, 0.03);
+          } catch {
+            lfo.frequency.value = f;
+          }
+          try {
+            if (lfoSmooth) {
+              const cutoff = Math.min(2000, Math.max(100, f * 120));
+              lfoSmooth.frequency.setTargetAtTime(
+                cutoff,
+                ctx.currentTime,
+                0.03
+              );
+            }
+          } catch {}
+        }
         if (waveChanged) {
           try {
             osc.stop();
@@ -896,10 +1062,25 @@ export function createIsochronicLayer(layer: SoundLayer): EngineHandle {
             Math.max(1, layer.baseFreq || 200),
             layer.wave || "sine"
           );
-          osc.chain(env, panNode, volNode);
+          osc.connect(volNode);
           try {
             if (stereo && effectChainInput && effectChainDownstream) {
-              (volNode as any).connect?.(stereo);
+              // Recreate or reuse gate and LFO chain
+              if (!ctx) ctx = getCtx();
+              if (ctx && !gate) gate = ctx.createGain();
+              if (gate) {
+                gate.gain.value = 0.5;
+                try {
+                  (volNode as any).disconnect?.();
+                } catch {}
+                (volNode as any).connect?.(gate);
+                try {
+                  lfoSmooth && gate && lfoSmooth.connect(gate.gain);
+                } catch {}
+                gate.connect(stereo);
+              } else {
+                (volNode as any).connect?.(stereo);
+              }
               stereo.connect(analyserToneFft as any);
               stereo.connect(effectChainInput);
               // effectChainOutput already connected to downstream in start()
@@ -914,8 +1095,42 @@ export function createIsochronicLayer(layer: SoundLayer): EngineHandle {
       } else if (carrier && ctx) {
         if (l.baseFreq !== undefined)
           carrier.frequency.value = Math.max(1, layer.baseFreq || 200);
-        if (l.volume !== undefined && gain) gain.gain.value = layer.volume;
+        if (l.volume !== undefined && gain) {
+          try {
+            if (ctx) {
+              gain.gain.cancelScheduledValues(ctx.currentTime);
+              gain.gain.setValueAtTime(gain.gain.value, ctx.currentTime);
+              gain.gain.linearRampToValueAtTime(
+                layer.volume,
+                ctx.currentTime + 0.02
+              );
+            } else {
+              gain.gain.value = layer.volume;
+            }
+          } catch {
+            gain.gain.value = layer.volume;
+          }
+        }
         if (l.pan !== undefined && stereo) stereo.pan.value = layer.pan || 0;
+        if (l.pulseFreq !== undefined && lfo) {
+          const f = Math.max(0.1, Math.min(50, layer.pulseFreq || 10));
+          try {
+            lfo.frequency.cancelScheduledValues(ctx.currentTime);
+            lfo.frequency.setTargetAtTime(f, ctx.currentTime, 0.03);
+          } catch {
+            lfo.frequency.value = f;
+          }
+          try {
+            if (lfoSmooth) {
+              const cutoff = Math.min(2000, Math.max(100, f * 120));
+              lfoSmooth.frequency.setTargetAtTime(
+                cutoff,
+                ctx.currentTime,
+                0.03
+              );
+            }
+          } catch {}
+        }
         if (waveChanged) {
           try {
             carrier.stop();
@@ -928,17 +1143,31 @@ export function createIsochronicLayer(layer: SoundLayer): EngineHandle {
           if (!stereo) stereo = ctx.createStereoPanner();
           if (!gain) gain = ctx.createGain();
           if (!analyserNode) analyserNode = ctx.createAnalyser();
-          gate.gain.value = 0;
+          gate.gain.value = 0.5;
           gain.gain.value = layer.volume;
           stereo.pan.value = layer.pan || 0;
           analyserNode.fftSize = 2048;
           const bus = getMasterBus(ctx);
+          // Recreate effect chain nodes to maintain routing through effects
+          const effectsInput = ctx.createGain();
+          const effectsOutput = ctx.createGain();
+          effectsInput.gain.value = 1;
+          effectsOutput.gain.value = 1;
+          effectChainInput = effectsInput;
+          effectChainOutput = effectsOutput;
+          // Connect LFO scaler to gate gain
+          try {
+            lfoSmooth && gate && lfoSmooth.connect(gate.gain);
+          } catch {}
           carrier
             .connect(gate)
             .connect(stereo)
             .connect(gain)
-            .connect(analyserNode)
-            .connect(bus.input);
+            .connect(effectsInput);
+          effectsInput.connect(effectsOutput);
+          effectsOutput.connect(analyserNode);
+          effectChainDownstream = analyserNode;
+          analyserNode.connect(bus.input);
           if (playing) {
             try {
               carrier.start();
@@ -955,9 +1184,7 @@ export function createIsochronicLayer(layer: SoundLayer): EngineHandle {
       if (osc) {
         try {
           osc.dispose?.();
-          env?.dispose?.();
           volNode?.dispose?.();
-          panNode?.dispose?.();
         } catch {}
       }
       if (carrier) {
@@ -965,6 +1192,21 @@ export function createIsochronicLayer(layer: SoundLayer): EngineHandle {
           carrier.disconnect();
         } catch {}
       }
+      try {
+        lfo?.stop();
+      } catch {}
+      try {
+        lfo?.disconnect();
+      } catch {}
+      try {
+        lfoScale?.disconnect();
+      } catch {}
+      try {
+        lfoSmooth?.disconnect();
+      } catch {}
+      try {
+        lfoScale?.disconnect();
+      } catch {}
       for (const h of noiseHandles.values()) {
         try {
           h.disconnect();
@@ -1038,6 +1280,21 @@ export function createIsochronicLayer(layer: SoundLayer): EngineHandle {
           (h as any).dispose?.();
         } catch {}
       }
+      try {
+        effectChainInput?.disconnect();
+      } catch {}
+      try {
+        effectChainOutput?.disconnect();
+      } catch {}
+      effectChainInput = null;
+      effectChainOutput = null;
+      effectChainDownstream = null;
+      for (const id of automationTimers.values()) {
+        try {
+          clearInterval(id);
+        } catch {}
+      }
+      automationTimers.clear();
       noiseHandles.clear();
       autopanHandles.clear();
       ringmodHandles.clear();
@@ -1052,7 +1309,6 @@ export function createIsochronicLayer(layer: SoundLayer): EngineHandle {
       harmonicexciterHandles.clear();
       reverbHandles.clear();
       multibandHandles.clear();
-      if (interval) clearInterval(interval);
     },
     getAnalyser: () => analyserNode || null,
     getWaveformData: (arr: Uint8Array) => {
