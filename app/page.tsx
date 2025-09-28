@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import MinimalCinematicHero from "@/app/ui/MinimalCinematicHero";
 import Reveal from "@/app/ui/Reveal";
 import Script from "next/script";

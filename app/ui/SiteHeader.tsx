@@ -26,6 +26,15 @@ export default function SiteHeader() {
           </Link>
           <nav className="flex items-center gap-2">
             <Link
+              href="/forum"
+              prefetch
+              className={linkBase}
+              data-analytics-event="nav_click"
+              data-analytics-label="forum"
+            >
+              Forum
+            </Link>
+            <Link
               href="/app"
               prefetch
               className={linkBase}

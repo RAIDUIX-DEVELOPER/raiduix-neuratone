@@ -322,6 +322,7 @@ const ambientSources = {
 - SEO: `app/sitemap.ts` and `app/robots.ts` generate sitemap and robots; new preset routes are included.
 - PWA: `next-pwa` is wired for production builds; service worker is not active in dev.
 - Analytics: `@vercel/analytics` can be enabled per page or globally; keep usage minimal for privacy.
+  - If you enable Analytics, ensure your CSP includes `https://va.vercel-scripts.com` in `script-src` and `connect-src` so the injected script can load and send events.
 
 ## 🧰 Development Scripts
 
@@ -335,6 +336,10 @@ Scripts defined in `package.json`:
 - `test`, `test:watch`, `test:ci` — Jest test suite
 
 Optional tasks (VS Code tasks.json) are available in this repo to streamline CI‑like checks.
+
+See also:
+
+- `docs/storage.md` for Vercel Blob and Edge Config setup and usage.
 
 ## 🧯 Troubleshooting FAQ
 
