@@ -213,7 +213,7 @@ export default function ForumClient() {
       {/* Left nav */}
       <aside className="hidden md:block">
         <div className="sticky top-6 space-y-3">
-          <div className="card spotlight rounded-lg p-4">
+          <div className="card rounded-lg p-4">
             <h2 className="text-base font-semibold text-teal-300 mb-3">
               Forum
             </h2>
@@ -346,7 +346,7 @@ export default function ForumClient() {
       {/* Right sidebar */}
       <aside className="hidden md:block">
         <div className="sticky top-6 space-y-4">
-          <div className="card spotlight rounded-lg p-4">
+          <div className="card rounded-lg p-4">
             <h3 className="text-base font-semibold text-teal-300 mb-2">
               Trending
             </h3>
@@ -362,7 +362,7 @@ export default function ForumClient() {
               )}
             </ul>
           </div>
-          <div className="card spotlight rounded-lg p-4">
+          <div className="card rounded-lg p-4">
             <h3 className="text-base font-semibold text-teal-300 mb-2">
               Rules & Guidelines
             </h3>
@@ -404,14 +404,12 @@ export default function ForumClient() {
 function Feed({ posts }: { posts: Post[] }) {
   if (!posts.length)
     return (
-      <div className="card spotlight rounded-lg p-4 text-slate-300/80">
-        No posts yet.
-      </div>
+      <div className="card rounded-lg p-4 text-slate-300/80">No posts yet.</div>
     );
   return (
     <div className="space-y-4">
       {posts.map((p) => (
-        <article key={p.id} className="card spotlight rounded-lg p-4">
+        <article key={p.id} className="card rounded-lg p-4">
           <div className="text-xs text-slate-300/70">
             @{p.authorUsername} · {new Date(p.createdAt).toLocaleString()}
           </div>
@@ -527,7 +525,7 @@ function Composer({
 
   if (!me)
     return (
-      <div className="card spotlight rounded-lg p-4 text-slate-300/85">
+      <div className="card rounded-lg p-4 text-slate-300/85">
         Please log in or sign up to post.
       </div>
     );
@@ -604,7 +602,7 @@ function Composer({
     setAttachments((prev) => prev.filter((x) => x !== u));
 
   return (
-    <div className="card spotlight rounded-lg p-4 space-y-3">
+    <div className="card rounded-lg p-4 space-y-3">
       <input
         className="w-full bg-transparent border border-white/10 rounded px-3 py-2"
         placeholder="Title"

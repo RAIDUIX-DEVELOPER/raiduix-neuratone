@@ -7,6 +7,8 @@ export async function GET() {
   const edgeConfigEnvPresent = !!process.env.EDGE_CONFIG;
   const writeEnvPresent =
     !!process.env.EDGE_CONFIG_ID && !!process.env.VERCEL_API_TOKEN;
+  const jwtSecretPresent =
+    !!process.env.AUTH_JWT_SECRET && process.env.AUTH_JWT_SECRET.length >= 32;
 
   let ecReadOk = false;
   let ecWriteOk = false;
@@ -57,6 +59,9 @@ export async function GET() {
       writeOk: ecWriteOk,
       lastTestKey: ecLastTestKey,
       writeError: ecWriteError,
+    },
+    auth: {
+      jwtSecretPresent,
     },
     blob: {
       tokenPresent: blobTokenPresent,

@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+export const dynamic = "force-dynamic";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/react";

@@ -43,13 +43,10 @@ export function middleware(req: NextRequest) {
     "default-src 'self'",
     `script-src ${scriptSrc}`,
     `style-src ${styleSrc}`,
-    // Allow inline style attributes in dev for DX; browsers ignore generic 'unsafe-inline' when nonce present
-    ...(isDev
-      ? [
-          "style-src-attr 'unsafe-inline'",
-          "style-src-elem 'self' 'unsafe-inline'",
-        ]
-      : []),
+    // Allow inline style attributes. In dev we also allow style elements broadly; in prod we only allow attributes.
+    // Note: style-src-attr is separate from style-src and remains effective even when a nonce is present.
+    "style-src-attr 'unsafe-inline'",
+    ...(isDev ? ["style-src-elem 'self' 'unsafe-inline'"] : []),
     "font-src 'self' https://fonts.gstatic.com",
     "img-src 'self' data: blob: https://*.public.blob.vercel-storage.com",
     "media-src 'self' blob: https://*.public.blob.vercel-storage.com",
